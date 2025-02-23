@@ -1,0 +1,21 @@
+{
+  "name": "typescript-static-analyzer",
+  "version": "1.0.0",
+  "main": "cli.ts",
+  "scripts": {
+    "analyze": "ts-node --project tsconfig.json cli.ts"
+  },
+  "keywords": ["static-analysis", "typescript"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "@types/fs-extra": "^11.0.4",
+    "chalk": "^5.3.0",
+    "commander": "^11.0.0",
+    "fs-extra": "^11.3.0",
+    "ts-morph": "^19.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

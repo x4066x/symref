@@ -9,7 +9,7 @@
   },
   "scripts": {
     "analyze": "ts-node --project tsconfig.json cli.ts",
-    "build": "tsc && echo '#!/usr/bin/env node' > dist/cli.tmp.js && cat dist/cli.js >> dist/cli.tmp.js && mv dist/cli.tmp.js dist/cli.js",
+    "build": "tsc",
     "postbuild": "chmod +x ./dist/cli.js",
     "prepare": "npm run build",
     "test": "jest"

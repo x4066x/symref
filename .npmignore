@@ -1,0 +1,39 @@
+# Source
+*.ts
+!*.d.ts
+src/
+
+# Tests
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Config files
+tsconfig.json
+.prettierrc
+.eslintrc
+.editorconfig
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Samples
+samples/
+
+# Rules
+rules/
+.windsurfrules
+.clinerules
+.cursorrules

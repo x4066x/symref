@@ -12,7 +12,7 @@ export interface ReferenceResult {
     isReferenced: boolean;   // 参照が存在するかどうか
 }
 
-export class ReferenceAnalyzer {
+export class StaticCodeChecker {
     private project: Project;
 
     constructor(tsConfigPath: string) {

@@ -1,6 +1,44 @@
-# TypeScript Static Analyzer
+# Static Checker for AI Code Agents
 
-TypeScriptプロジェクトの静的解析を行うツールです。
+[![npm version](https://badge.fury.io/js/ai-code-static-checker.svg)](https://badge.fury.io/js/ai-code-static-checker)
+
+AIコードエージェント（Windsurf、Cline等）が行うコード修正の精度を向上させるための静的解析ツールです。
+
+## 概要
+
+このツールは、AIコードエージェントによる自動コード生成・修正の前後で実行することで、より正確なコード変更を実現するための静的解析を提供します。
+
+### 主な機能
+
+1. **シンボル参照解析**
+   - 関数、クラス、インターフェースの使用箇所を特定
+   - 依存関係の自動検出
+   - 変更影響範囲の可視化
+
+2. **ファイル参照チェック**
+   - ファイル間の依存関係分析
+   - 循環参照の検出
+   - デッドコードの特定
+
+### AIエージェントサポート
+
+以下のAIコードエージェント用のルール定義を提供しています：
+
+- `.windsurf/rules.json` - Windsurf用の静的解析ルール
+- `.clinerules` - Cline用の静的解析ルール
+- `.cursorrules` - Cursor用の静的解析ルール
+
+## 変更履歴
+
+### 0.1.1 (2025-02-23)
+- package.jsonのリポジトリ情報を更新
+- npmパッケージの説明とメタデータを改善
+- READMEにバージョン情報とバッジを追加
+
+### 0.1.0 (2025-02-23)
+- 初期リリース
+- 基本的な静的解析機能の実装
+- AIコードエージェント用のルール定義サポート
 
 ## インストール
 

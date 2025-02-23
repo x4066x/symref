@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { ReferenceAnalyzer } from './referenceAnalyzer';
+import { StaticCodeChecker } from './staticCodeChecker';
 import chalk from 'chalk';
 
 const program = new Command();
@@ -15,7 +15,7 @@ program
     .argument('<symbol>', 'Symbol name to analyze (function, class, interface, etc.)')
     .option('-p, --project <path>', 'Path to tsconfig.json', 'tsconfig.json')
     .action(async (symbol, options) => {
-        const analyzer = new ReferenceAnalyzer(options.project);
+        const analyzer = new StaticCodeChecker(options.project);
         const result = analyzer.analyzeSymbol(symbol);
 
         if (result.references.length > 0) {
@@ -36,7 +36,7 @@ program
     .argument('<file>', 'File path to analyze')
     .option('-p, --project <path>', 'Path to tsconfig.json', 'tsconfig.json')
     .action(async (file, options) => {
-        const analyzer = new ReferenceAnalyzer(options.project);
+        const analyzer = new StaticCodeChecker(options.project);
         const unreferenced = analyzer.checkNewCode(file);
 
         if (unreferenced.length > 0) {

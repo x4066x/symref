@@ -1,14 +1,19 @@
 {
   "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "./dist",
     "esModuleInterop": true,
-    "target": "ES2020",
-    "module": "CommonJS",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["*.ts", "samples/**/*.ts"]
+  "include": ["*.ts", "samples/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

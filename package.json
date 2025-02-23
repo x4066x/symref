@@ -1,13 +1,36 @@
 {
-  "name": "typescript-static-analyzer",
-  "version": "1.0.0",
-  "main": "cli.ts",
-  "scripts": {
-    "analyze": "ts-node --project tsconfig.json cli.ts"
+  "name": "ai-code-static-checker",
+  "version": "0.1.1",
+  "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ai-code-check": "./dist/cli.js"
   },
-  "keywords": ["static-analysis", "typescript"],
+  "scripts": {
+    "analyze": "ts-node --project tsconfig.json cli.ts",
+    "build": "tsc",
+    "prepare": "npm run build",
+    "test": "jest"
+  },
+  "keywords": [
+    "static-analysis", 
+    "typescript", 
+    "ai", 
+    "code-analysis", 
+    "windsurf",
+    "cline"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/x4066x/ai-code-static-checker.git"
+  },
+  "homepage": "https://github.com/x4066x/ai-code-static-checker#readme",
+  "bugs": {
+    "url": "https://github.com/x4066x/ai-code-static-checker/issues"
+  },
   "devDependencies": {
     "@types/node": "^22.13.5",
     "@types/fs-extra": "^11.0.4",

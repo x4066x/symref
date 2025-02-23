@@ -1,6 +1,6 @@
 {
   "name": "ai-code-static-checker",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

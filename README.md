@@ -284,6 +284,92 @@ npm run analyze check-file samples/NotificationService.ts
    ⚠ Warning: No references found for class 'ClassName'
    ```
    - 考えられる原因：
+
+## サンプルコードを使用したテスト
+
+リポジトリには、テスト用のサンプルコードが`samples`ディレクトリに用意されています。以下の手順で動作確認ができます：
+
+### 1. リポジトリのクローンとセットアップ
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/x4066x/symref.git
+cd symref
+
+# 依存関係をインストール
+npm install
+
+# ビルドを実行
+npm run build
+```
+
+### 2. サンプルコードの構成
+
+`samples`ディレクトリには以下のファイルが含まれています：
+
+- `types.ts`: インターフェースと型定義
+- `UserService.ts`: ユーザー管理サービスの実装
+- `NotificationService.ts`: 通知サービスの実装
+- `tsconfig.json`: TypeScript設定ファイル
+
+### 3. シンボル参照の分析
+
+以下のコマンドを実行して、各シンボルの参照を分析できます：
+
+```bash
+# IUserインターフェースの参照を確認
+npx symref refs IUser -d ./samples
+
+# UserServiceクラスの参照を確認
+npx symref refs UserService -d ./samples
+
+# 特定のメソッドの参照を確認
+npx symref refs notify -d ./samples
+```
+
+### 4. 未使用シンボルの検出
+
+特定のファイル内の未使用シンボルを検出します：
+
+```bash
+# UserServiceの未使用シンボルを確認
+npx symref dead samples/UserService.ts
+
+# NotificationServiceの未使用シンボルを確認
+npx symref dead samples/NotificationService.ts
+```
+
+### 5. 結果の解釈
+
+- ✓ マーク: シンボルが他のファイルから参照されている
+- ⚠ マーク: シンボルが他のファイルから参照されていない
+
+例えば、以下のような出力が表示されます：
+
+```bash
+=== Analyzing symbol: IUser ===
+Definition:
+  File: samples/types.ts
+  Line: 1, Column: 18
+  Type: interface
+  Context: global scope
+
+✓ Found 1 references to interface 'IUser':
+File: samples/UserService.ts
+  Line: 1, Column: 10
+  Context: global scope
+```
+
+### 6. サンプルコードの拡張
+
+サンプルコードを自由に修正して、以下のようなテストを試してみることができます：
+
+1. 新しいメソッドを追加し、参照されていないことを確認
+2. 既存のメソッドへの新しい参照を追加し、検出されることを確認
+3. インターフェースを変更し、実装クラスとの整合性を確認
+
+これらの操作を通じて、symrefの機能と使い方を実践的に学ぶことができます。
+
      - シンボルが新しく作成されたばかり
      - インターフェースを通じた間接的な使用
      - デッドコード

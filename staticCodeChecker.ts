@@ -137,8 +137,38 @@ export class StaticCodeChecker {
 
             for (const node of nodes) {
                 // シンボルの定義が一致するもののみを参照として扱う
-                const definition = node.getDefinitionNodes()[0];
-                if (!definition || definition.getPos() !== definitionNode.getPos()) {
+                // シンボルの参照をチェック
+                const definitions = node.getDefinitions();
+                let isReferenceToDefinition = false;
+
+                // シンボルの定義をチェック
+                for (const def of definitions) {
+                    const defNode = def.getDeclarationNode();
+                    if (!defNode) continue;
+
+                    // 同じファイル内の定義をチェック
+                    const isSameFile = defNode.getSourceFile().getFilePath() === definitionNode.getSourceFile().getFilePath();
+                    const isSamePosition = defNode.getPos() === definitionNode.getPos();
+                    if (isSameFile && isSamePosition) {
+                        isReferenceToDefinition = true;
+                        break;
+                    }
+
+                    // クラスのインスタンス化やメソッド呼び出しをチェック
+                    const nodeParent = node.getParent();
+                    if (nodeParent) {
+                        if (nodeParent.isKind(SyntaxKind.NewExpression) && defNode.isKind(SyntaxKind.ClassDeclaration)) {
+                            isReferenceToDefinition = true;
+                            break;
+                        }
+                        if (nodeParent.isKind(SyntaxKind.PropertyAccessExpression) && defNode.isKind(SyntaxKind.MethodDeclaration)) {
+                            isReferenceToDefinition = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isReferenceToDefinition) {
                     continue;
                 }
 
@@ -147,17 +177,50 @@ export class StaticCodeChecker {
                     continue;
                 }
 
-                // 自身の定義からの参照は除外
+                // シンボルの定義自体は参照としてカウントしない
                 const parent = node.getParent();
                 if (parent && (
-                    parent.isKind(SyntaxKind.ClassDeclaration) || 
-                    parent.isKind(SyntaxKind.InterfaceDeclaration) || 
-                    parent.isKind(SyntaxKind.FunctionDeclaration) ||
-                    parent.isKind(SyntaxKind.MethodDeclaration) ||
-                    parent.isKind(SyntaxKind.PropertyDeclaration) ||
-                    parent.isKind(SyntaxKind.MethodSignature)
+                    // 定義自体のノードをスキップ
+                    (node === definitionNode && (
+                        parent.isKind(SyntaxKind.ClassDeclaration) || 
+                        parent.isKind(SyntaxKind.InterfaceDeclaration) || 
+                        parent.isKind(SyntaxKind.FunctionDeclaration) ||
+                        parent.isKind(SyntaxKind.MethodDeclaration) ||
+                        parent.isKind(SyntaxKind.PropertyDeclaration) ||
+                        parent.isKind(SyntaxKind.MethodSignature)
+                    )) ||
+                    // メソッド定義のシグネチャをスキップ
+                    (parent.isKind(SyntaxKind.PropertyAccessExpression) && parent.getParent()?.isKind(SyntaxKind.MethodDeclaration))
                 )) {
                     continue;
+                }
+
+                // インポート文での参照もカウントする
+                if (parent && parent.isKind(SyntaxKind.ImportSpecifier)) {
+                    const importDecl = parent.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
+                    if (importDecl) {
+                        const importedModule = importDecl.getModuleSpecifierValue();
+                        // 相対パスの場合、フルパスを解決
+                        if (importedModule.startsWith('.')) {
+                            const importerDir = path.dirname(importDecl.getSourceFile().getFilePath());
+                            const resolvedPath = path.resolve(importerDir, importedModule);
+                            // TypeScriptの拡張子を追加
+                            const possiblePaths = [
+                                resolvedPath + '.ts',
+                                resolvedPath + '.tsx',
+                                path.join(resolvedPath, 'index.ts'),
+                                path.join(resolvedPath, 'index.tsx')
+                            ];
+                            // 実際のファイルパスと比較
+                            const targetPath = definitionNode.getSourceFile().getFilePath();
+                            if (!possiblePaths.some(p => p === targetPath)) {
+                                continue;
+                            }
+                        } else {
+                            // 外部モジュールの場合はスキップ
+                            continue;
+                        }
+                    }
                 }
 
                 const pos = node.getSourceFile().getLineAndColumnAtPos(node.getStart());

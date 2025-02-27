@@ -1,38 +1,55 @@
-# Static Analysis Requirements
+# symref - AI Context Tool
 
-Before modifying or adding code, execute the following static analysis checks:
+## Challenges & Solutions
+```bash
+# 1. Limited Visibility
+symref refs func -d ./src                    # Full view
+symref refs "main,*" --include "src/*.ts"    # Entry points
+symref refs "*Service*" -d ./src             # Dependencies
 
-1. Check Symbol References
-   Command: npm run analyze analyze-symbol <symbol-name>
-   Example: npm run analyze analyze-symbol handleApiRequest
+# 2. Implementation Gaps
+symref refs IInterface -d ./src              # Find impls
+symref refs changed -d ./src                 # Track updates
+symref dead src/file.ts                      # Find dead code
 
-2. Check File References
-   Command: npm run analyze check-file <file-path>
-   Example: npm run analyze check-file ./src/newFeature.ts
+# 3. Reference Check
+symref refs symbol -d ./src                  # All refs
+symref refs "*pattern*" --include "src/*.ts" # Similar code
+symref refs ServiceA,ServiceB -d ./src       # Dependencies
+```
 
-Execute these checks at the following times:
-- Before modifying existing functions or classes
-- After creating new files
-- Before modifying components or interfaces
-- Before performing refactoring
+## Quick Start
+```bash
+# Install
+npm install -g symref
 
-Based on analysis results:
-- If references are found, ensure all referencing files are properly updated
-- If no references are found, verify if the code is necessary or potentially dead
-- Clearly identify the scope of changes and ensure all necessary modifications are made
+# Find Refs
+symref refs MyClass                          # Single
+symref refs func,IFace                       # Multiple
 
-Best Practices:
-1. Pre-modification Checks
-   - Identify all references to the target symbol
-   - Document the impact scope
-   - Plan necessary modifications
+# Dead Code
+symref dead src/comp.ts
+```
 
-2. Post-modification Verification
-   - Verify new reference relationships
-   - Validate any unreferenced symbol warnings
-   - Check for circular dependencies
+## Options
+```bash
+-d <path>      # Base dir
+-p <path>      # tsconfig
+--include      # Include files
+--exclude      # Exclude files
+```
 
-3. Documentation
-   - Document significant changes in reference relationships
-   - Update relevant documentation if public APIs are modified
-   - Note any technical debt or future improvements needed
+## Output
+```
+✓ Refs: file.ts:line (context)
+⚠ None: Consider removal
+```
+
+## Best Practice
+1. Pre-change: Check refs & usage
+2. Cleanup: Remove unused, update docs
+
+## Core Files
+@[staticCodeChecker.ts] - Analyzer
+@[cli.ts] - CLI
+@[README.md] - Docs

@@ -1,38 +1,49 @@
-# Static Analysis Requirements
+// symref - AI Context Window Solution
+// Version: 2025.02
 
-Before modifying or adding code, execute the following static analysis checks:
+// Context Limitations & Solutions
+1. Limited Visibility:
+   symref refs yourFunction -d ./src         // Full codebase view
+   symref refs "main,*" --include "src/*.ts" // Entry points
+   symref refs "*Service*" -d ./src          // Dependency chain
 
-1. Check Symbol References
-   Command: npm run analyze analyze-symbol <symbol-name>
-   Example: npm run analyze analyze-symbol handleApiRequest
+2. Implementation Gaps:
+   symref refs IYourInterface -d ./src     // Interface impl
+   symref refs modifiedFunction -d ./src   // Update tracking
+   symref dead src/file.ts                 // Dead code
 
-2. Check File References
-   Command: npm run analyze check-file <file-path>
-   Example: npm run analyze check-file ./src/newFeature.ts
+// Quick Commands
+1. Find Refs:
+   symref refs MyClass
+   symref refs myFunc,IMyInterface
 
-Execute these checks at the following times:
-- Before modifying existing functions or classes
-- After creating new files
-- Before modifying components or interfaces
-- Before performing refactoring
+2. Dead Check:
+   symref dead src/components/MyComp.ts
 
-Based on analysis results:
-- If references are found, ensure all referencing files are properly updated
-- If no references are found, verify if the code is necessary or potentially dead
-- Clearly identify the scope of changes and ensure all necessary modifications are made
+// Options
+-d <path>      // Base dir
+-p <path>      // tsconfig
+--include      // Include files
+--exclude      // Exclude files
 
-Best Practices:
-1. Pre-modification Checks
-   - Identify all references to the target symbol
-   - Document the impact scope
-   - Plan necessary modifications
+// Features
+1. Symbol Analysis:
+   - Finds refs & definitions
+   - Shows context & usage
 
-2. Post-modification Verification
-   - Verify new reference relationships
-   - Validate any unreferenced symbol warnings
-   - Check for circular dependencies
+2. Dead Code:
+   - Finds unused code
+   - Reports refs
 
-3. Documentation
-   - Document significant changes in reference relationships
-   - Update relevant documentation if public APIs are modified
-   - Note any technical debt or future improvements needed
+// Output
+✓ Found refs:  file.ts:line (context)
+⚠ No refs:     Consider removal
+
+// Best Practice
+1. Pre-change: Check refs & usage
+2. Cleanup:    Remove unused, update docs
+
+// Core
+@[staticCodeChecker.ts] - Analyzer
+@[cli.ts] - CLI
+@[README.md] - Docs

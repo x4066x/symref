@@ -6,24 +6,46 @@
 
 ## 背景と課題
 
-近年、Cursor Composer、Wind Surf、CleinなどのAIコードエージェントが開発現場で活用されています。これらのエージェントは開発者の生産性を大幅に向上させる一方で、コードベース全体を完全に理解できないことによる問題が発生しています。
+近年、Cursor Composer、Wind Surf、CleinなどのAIコードエージェントが開発現場で活用されています。これらのエージェントは開発者の生産性を大幅に向上させる一方で、コンテキストウィンドウの物理的な制限により、コードベース全体を完全に理解できないという根本的な課題があります。
 
 ### AIコードエージェントが直面する主な課題
 
-1. **不適切な修正位置の選択**
+1. **コンテキストの限界による問題**
+   - コードベース全体を一度に把握できない
+   - エントリーポイントからの呼び出し関係が見えない
+   - 依存関係の全体像が把握できない
+
+2. **不適切な修正位置の選択**
    - 本来修正すべき箇所とは異なる場所を変更
    - 新規コードの不適切な配置
+   - インターフェースの実装箇所を見落とし
 
-2. **依存関係の見落とし**
-   - 新たに書いたコードを上位ロジックから呼び出さずに古いバージョンを継続利用してしまう
+3. **依存関係の見落とし**
+   - 新たに書いたコードを上位ロジックから呼び出さずに古いバージョンを継続利用
    - インターフェースの変更に追従できていない実装
    - 関連するファイルやモジュールへの影響を考慮できない
 
-これらの問題は少ないコード量であれば問題になりくいですが、関連性が複雑になればなるほど発生しやすくなります。
-これが１度発生してもコードエージェントなら修正してくれると思うでしょうか？それで上手くいった場合は生産性がバク上がりですが、失敗した場合はゴミを生み出す効率ばかりを高めてしまいます。本来修正されるべきポイントを見過ごしたまま、コードの修正が重なり合った結果、最終的に埒が明かなくなり、前のコミット履歴までディスカードするという体験を何度も経験したことがあります。
-（上手くいくまでディスカードしていたら、Cline（Claude3.5 Sonnet）の請求が$500になっていたことがあります。ゴミを捨てるにしては高すぎます。）
+4. **デッドコードの生成**
+   - 既存の実装を見落として重複コードを生成
+   - 古い実装が残ったまま新しい実装を追加
+   - 参照されなくなったコードの放置
 
-これはAIコーダーを活用する上での重大な課題となっています。
+これらの問題は、コードベースが大きくなり関連性が複雑になればなるほど深刻化します。
+一度このような問題が発生すると、AIコードエージェントによる修正も困難になります。なぜなら：
+
+1. **コンテキストの分断**
+   - 問題のある箇所を特定できない
+   - 修正すべき箇所を見落とす
+   - 部分的な修正による新たな問題の発生
+
+2. **累積的な影響**
+   - 不完全な修正の積み重ね
+   - デッドコードの増加
+   - コードベースの品質低下
+
+（実例：上手くいくまでディスカードを繰り返した結果、Cline（Claude3.5 Sonnet）の請求が$500に達したケースがありました。これは、コンテキストの制限により効率的な修正ができなかったことが原因です。）
+
+これらの課題に対して、symrefは以下のような解決策を提供します：
 
 ## 解決策：静的解析アプローチ
 
@@ -157,48 +179,17 @@ npm run dead -- --help    # deadコマンドのヘルプ
 
 ## サンプルコード
 
-このリポジトリには、静的解析ツールのテスト用のサンプルコードが含まれています。
-サンプルコードは `samples` ディレクトリに格納されています。
+以下のコマンドでサンプルコードの解析を試すことができます：
 
-### ファイル構成
+```bash
+# シンボル参照の解析
+npx symref refs UserService -d ./samples
 
-```
-samples/
-├── types.ts             # 共通の型定義
-├── UserService.ts      # ユーザー管理機能を提供するサービス
-└── NotificationService.ts  # 通知機能を提供するサービス
+# 未使用シンボルのチェック
+npx symref dead ./samples/types.ts
 ```
 
-これらのファイルは以下のような依存関係を持っています：
-
-```
-samples/types.ts
-├── IUser (interface)
-├── IUserService (interface)
-├── NotificationType (enum)
-├── INotification (interface)
-└── INotificationService (interface)
-
-samples/UserService.ts
-└── UserService (class)
-    ├── implements: IUserService
-    ├── メソッド: getUser, createUser, updateUser
-    ├── プロパティ: notificationService
-    └── 依存: INotificationService, IUser, NotificationType
-
-samples/NotificationService.ts
-└── NotificationService (class)
-    ├── implements: INotificationService
-    ├── メソッド: notify, setUserService
-    ├── プロパティ: userService
-    └── 依存: IUserService, INotification
-```
-
-この構造の利点：
-
-1. 循環参照の解消
-   - 共通のインターフェースと型を`types.ts`に集約
-   - 各サービスはインターフェースのみに依存
+サンプルコードは `samples` ディレクトリにあり、TypeScriptの一般的なユースケースをカバーしています。
 
 2. テスト容易性の向上
    - インターフェースを介した疑似オブジェクトの作成が容易
@@ -208,214 +199,25 @@ samples/NotificationService.ts
    - 型定義の一元管理
    - サービス間の依存関係が明確
 
-## 静的解析の使用例
-
-### 1. シンボルの参照チェック
-
-クラスの参照を確認：
-```bash
-# UserServiceクラスの参照を確認
-npm run analyze analyze-symbol UserService
-
-# NotificationServiceクラスの参照を確認
-npm run analyze analyze-symbol NotificationService
-```
-
-インターフェースの参照を確認：
-```bash
-# IUserインターフェースの参照を確認
-npm run analyze analyze-symbol IUser
-
-# INotificationServiceインターフェースの参照を確認
-npm run analyze analyze-symbol INotificationService
-```
-
-関数の参照を確認：
-```bash
-# メソッドの参照を確認
-npx symref analyze-symbol setUserService
-
-# プロパティの参照を確認
-npx symref analyze-symbol userService
-
-# クラスメソッドの参照を確認
-npx symref analyze-symbol getUser
-```
-
-または、package.jsonのscriptsを使用する場合：
-
-```bash
-# メソッドの参照を確認
-npm run analyze setUserService
-
-# プロパティの参照を確認
-npm run analyze userService
-
-# クラスメソッドの参照を確認
-npm run analyze getUser
-```
-
-### 2. ファイルの参照チェック
-
-```bash
-# UserService.tsの参照を確認
-npm run analyze check-file samples/UserService.ts
-
-# NotificationService.tsの参照を確認
-npm run analyze check-file samples/NotificationService.ts
-```
-
 ## 解析結果の見方
 
-1. シンボルの参照チェック結果
-   - 定義場所（ファイルパス、行番号）
-   - 参照場所のリスト（ファイルパス、行番号）
-   - 使用タイプ（import, call, implementation など）
-
-2. ファイルの参照チェック結果
-   - エクスポートされているシンボルのリスト
-   - 各シンボルの参照場所
-   - ファイルの依存関係
-
-### 警告メッセージの解釈
-
-1. 未参照シンボルの警告（No references found）
-   ```
-   ⚠ Warning: No references found for class 'ClassName'
-   ```
-   - 考えられる原因：
-
-## サンプルコードを使用したテスト
-
-リポジトリには、テスト用のサンプルコードが`samples`ディレクトリに用意されています。以下の手順で動作確認ができます：
-
-### 1. リポジトリのクローンとセットアップ
+### 出力形式
 
 ```bash
-# リポジトリをクローン
-git clone https://github.com/x4066x/symref.git
-cd symref
-
-# 依存関係をインストール
-npm install
-
-# ビルドを実行
-npm run build
+=== Analyzing symbol: SymbolName ===
+✓ Found X references  # 参照が見つかった場合
+⚠ No references found # 参照が見つからない場合
 ```
 
-### 2. サンプルコードの構成
+### 警告メッセージ
 
-`samples`ディレクトリには以下のファイルが含まれています：
-
-- `types.ts`: インターフェースと型定義
-- `UserService.ts`: ユーザー管理サービスの実装
-- `NotificationService.ts`: 通知サービスの実装
-- `tsconfig.json`: TypeScript設定ファイル
-
-### 3. シンボル参照の分析
-
-以下のコマンドを実行して、各シンボルの参照を分析できます：
-
-```bash
-# IUserインターフェースの参照を確認
-npx symref refs IUser -d ./samples
-
-# UserServiceクラスの参照を確認
-npx symref refs UserService -d ./samples
-
-# 特定のメソッドの参照を確認
-npx symref refs notify -d ./samples
-```
-
-### 4. 未使用シンボルの検出
-
-特定のファイル内の未使用シンボルを検出します：
-
-```bash
-# UserServiceの未使用シンボルを確認
-npx symref dead samples/UserService.ts
-
-# NotificationServiceの未使用シンボルを確認
-npx symref dead samples/NotificationService.ts
-```
-
-### 5. 結果の解釈
-
-- ✓ マーク: シンボルが他のファイルから参照されている
-- ⚠ マーク: シンボルが他のファイルから参照されていない
-
-例えば、以下のような出力が表示されます：
-
-```bash
-=== Analyzing symbol: IUser ===
-Definition:
-  File: samples/types.ts
-  Line: 1, Column: 18
-  Type: interface
-  Context: global scope
-
-✓ Found 1 references to interface 'IUser':
-File: samples/UserService.ts
-  Line: 1, Column: 10
-  Context: global scope
-```
-
-### 6. サンプルコードの拡張
-
-サンプルコードを自由に修正して、以下のようなテストを試してみることができます：
-
-1. 新しいメソッドを追加し、参照されていないことを確認
-2. 既存のメソッドへの新しい参照を追加し、検出されることを確認
-3. インターフェースを変更し、実装クラスとの整合性を確認
-
-これらの操作を通じて、symrefの機能と使い方を実践的に学ぶことができます。
-
-     - シンボルが新しく作成されたばかり
-     - インターフェースを通じた間接的な使用
-     - デッドコード
-   - 対応方法：
-     - 新規作成の場合：実装の完了を待つ
-     - インターフェース経由の場合：設計上の意図と一致しているか確認
-     - デッドコードの場合：削除を検討
-
-2. 複数の参照が見つかった場合（Multiple references found）
-   ```
-   ✓ Found X references to symbol 'SymbolName':
-   ```
-   - 確認すべきポイント：
-     - 参照元が想定通りのファイルか
-     - 使用方法が適切か
-     - 変更による影響範囲
-
-3. ファイル内の未参照シンボル
-   ```
-   ⚠ Warning: Found N potentially unreferenced symbols:
-   ```
-   - 確認すべきポイント：
-     - 公開APIとして必要か
-     - テストコードでの使用予定があるか
-     - リファクタリングの必要性
-
-### ベストプラクティス
-
-1. 変更前のチェック
-   - 変更対象のシンボルの参照関係を確認
-   - 影響範囲の特定
-   - 必要な修正箇所のリストアップ
-
-2. 変更後のチェック
-   - 新しい参照関係が意図通りか確認
-   - 未参照警告の妥当性チェック
-   - 循環参照の有無の確認
-
-3. 継続的なモニタリング
-   - 定期的な静的解析の実行
-   - 警告の傾向分析
-   - コードベースの健全性維持
+- ⚠ `No references found`: 未使用のシンボル
+- ⚠ `Multiple definitions found`: 同名のシンボルが複数存在
+- ⚠ `Circular dependency detected`: 循環参照の検出
 
 ## 機能
 
-- シンボル（関数、クラス、変数など）の参照箇所の特定
-- ファイル内のエクスポートされたシンボルの参照チェック
+- シンボル参照の特定と分析
+- 未使用コードの検出
 - 依存関係の分析
-- デッドコードの検出
+- 循環参照の検出

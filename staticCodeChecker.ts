@@ -1,4 +1,5 @@
 import { Project, Node, SyntaxKind } from 'ts-morph';
+import * as path from 'path';
 
 export interface ReferenceResult {
     symbol: string;          // 検索対象のシンボル名
@@ -24,6 +25,7 @@ export class StaticCodeChecker {
     public analyzeSymbol(symbolName: string): ReferenceResult {
         const references: ReferenceResult['references'] = [];
         let symbolType: ReferenceResult['type'] = 'function';
+        const refsSet = new Set<string>();
 
         // プロジェクト内の全ソースファイルを検索
         this.project.getSourceFiles().forEach(sourceFile => {
@@ -43,16 +45,48 @@ export class StaticCodeChecker {
 
                 // 参照を収集
                 const refs = node.findReferencesAsNodes();
+
                 refs.forEach((ref: Node) => {
                     const pos = ref.getSourceFile().getLineAndColumnAtPos(ref.getStart());
                     const containingFunction = ref.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration);
                     
-                    references.push({
-                        filePath: ref.getSourceFile().getFilePath(),
-                        line: pos.line,
-                        column: pos.column,
-                        context: containingFunction?.getName() || 'global scope'
-                    });
+                    // Get containing class or interface
+                    const containingClass = ref.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
+                    const containingInterface = ref.getFirstAncestorByKind(SyntaxKind.InterfaceDeclaration);
+                    const containingMethod = ref.getFirstAncestorByKind(SyntaxKind.MethodDeclaration);
+                    
+                    // Build context information
+                    let context = 'global scope';
+                    if (containingClass) {
+                        context = `class ${containingClass.getName()}`;
+                        if (containingMethod) {
+                            context += `.${containingMethod.getName()}`;
+                        }
+                    } else if (containingInterface) {
+                        context = `interface ${containingInterface.getName()}`;
+                    } else if (containingFunction) {
+                        context = `function ${containingFunction.getName()}`;
+                    } else if (containingMethod) {
+                        context = `method ${containingMethod.getName()}`;
+                    }
+
+                    // Convert absolute path to relative path
+                    const filePath = ref.getSourceFile().getFilePath();
+                    const relativePath = path.relative(process.cwd(), filePath);
+
+                    // Create a unique key for this reference
+                    const refKey = `${relativePath}:${pos.line}:${pos.column}:${context}`;
+
+                    // Only add if we haven't seen this reference before
+                    if (!refsSet.has(refKey)) {
+                        refsSet.add(refKey);
+                        references.push({
+                            filePath: relativePath,
+                            line: pos.line,
+                            column: pos.column,
+                            context: context
+                        });
+                    }
                 });
             });
         });

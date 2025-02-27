@@ -1,6 +1,8 @@
-# Static Checker for AI Code Agents
+# Symref - Symbol Reference Analyzer for TypeScript
 
-[![npm version](https://badge.fury.io/js/ai-code-static-checker.svg)](https://badge.fury.io/js/ai-code-static-checker)
+[![npm version](https://badge.fury.io/js/symref.svg)](https://badge.fury.io/js/symref)
+
+> **Note**: This package was previously published as `ai-code-static-checker`
 
 ## 背景と課題
 

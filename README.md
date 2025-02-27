@@ -33,7 +33,9 @@
 ### 主な機能
 
 1. **シンボル参照解析**
-   - 関数、クラス、インターフェースの使用箇所を特定
+   - 関数、クラス、インターフェース、メソッド、プロパティの使用箇所を正確に特定
+   - 同名の異なるシンボルを正しく区別
+   - 変数名の偶然の一致を除外
    - 依存関係の自動検出
    - 変更影響範囲の可視化
 
@@ -55,60 +57,102 @@
 ### インストール
 
 ```bash
-npm install -g ai-code-static-checker
+npm install --save-dev symref
+```
+
+または
+
+```bash
+yarn add --dev symref
 ```
 
 ### 基本的な使い方
 
-1. シンボル参照の解析
+インストール後、以下の2つの方法で実行できます：
 
-特定のシンボル（関数、クラス、変数など）がどこで参照されているかを解析します：
-
+1. npxを使用する方法：
 ```bash
-ai-code-check analyze-symbol MyClass
+npx symref refs MyClass
+```
+
+2. package.jsonのscriptsに追加する方法：
+```json
+{
+  "scripts": {
+    "refs": "symref refs",
+    "dead": "symref dead"
+  }
+}
+```
+
+その後、以下のように実行します：
+```bash
+npm run refs MyClass
 ```
 
 オプション：
-- `--tsconfig`: TypeScriptの設定ファイルを指定（デフォルト: tsconfig.json）
-- `--file`: 特定のファイル内でのみ検索
+- `-d, --dir`: 解析を開始するベースディレクトリを指定（デフォルト: カレントディレクトリ）
+- `-p, --project`: TypeScriptの設定ファイルを指定（オプショナル）
+- `--include`: 解析対象のファイルパターン（カンマ区切り、デフォルト: `**/*.ts,**/*.tsx`）
+- `--exclude`: 除外するファイルパターン（カンマ区切り、デフォルト: `**/node_modules/**`）
 
 2. ファイル内の未参照シンボルのチェック
 
 指定したファイル内で、他の場所から参照されていないシンボルを検出します：
 
 ```bash
-ai-code-check check-file src/myFile.ts
+symref dead src/myFile.ts
 ```
 
 オプション：
 - `--tsconfig`: TypeScriptの設定ファイルを指定（デフォルト: tsconfig.json）
 
-### AIコードエージェントとの連携
+### 使用例
 
-1. 修正前のチェック
+1. 基本的な使い方
    ```bash
-   # 修正対象のファイルをチェック
-   ai-code-check check-file target.ts
+   # 特定のディレクトリ内のTypeScriptファイルを解析
+   npx symref refs MyClass -d ./src
    
-   # 関連するシンボルの参照を確認
-   ai-code-check analyze-symbol TargetFunction
+   # カスタムパターンでファイルを指定
+   npx symref refs MyClass --include "src/**/*.ts,libs/**/*.ts" --exclude "**/*.test.ts"
+   
+   # tsconfig.jsonを使用（オプショナル）
+   npx symref refs MyClass -d ./src -p ./tsconfig.json
    ```
 
-2. 修正後のチェック
+2. package.jsonのscriptsを使用した例
+   ```json
+   {
+     "scripts": {
+       "refs": "symref refs",
+       "dead": "symref dead"
+     }
+   }
+   ```
+
    ```bash
-   # 修正されたファイルで未参照シンボルがないかチェック
-   ai-code-check check-file target.ts
+   # 修正対象のディレクトリをチェック
+   npm run dead target.ts -- -d ./src
    
-   # 新しく追加されたシンボルの参照を確認
-   ai-code-check analyze-symbol NewFunction
+   # 関連するシンボルの参照を確認（テストを除外）
+   npm run refs TargetFunction -- --exclude "**/*.test.ts,**/*.spec.ts"
+   
+   # 新しく追加されたシンボルの参照を確認（特定のディレクトリのみ）
+   npm run refs NewFunction -- -d ./src --include "src/**/*.ts"
    ```
 
 ### ヘルプの表示
 
 ```bash
-ai-code-check --help          # 全般的なヘルプ
-ai-code-check analyze-symbol --help  # analyze-symbolコマンドのヘルプ
-ai-code-check check-file --help      # check-fileコマンドのヘルプ
+# npxを使用する場合
+npx symref --help          # 全般的なヘルプ
+npx symref refs --help  # refsコマンドのヘルプ
+npx symref dead --help      # deadコマンドのヘルプ
+
+# package.jsonのscriptsを使用する場合
+npm run refs -- --help  # refsコマンドのヘルプ
+npm run dead -- --help    # deadコマンドのヘルプ
 ```
 
 ## サンプルコード
@@ -138,11 +182,15 @@ samples/types.ts
 samples/UserService.ts
 └── UserService (class)
     ├── implements: IUserService
+    ├── メソッド: getUser, createUser, updateUser
+    ├── プロパティ: notificationService
     └── 依存: INotificationService, IUser, NotificationType
 
 samples/NotificationService.ts
 └── NotificationService (class)
     ├── implements: INotificationService
+    ├── メソッド: notify, setUserService
+    ├── プロパティ: userService
     └── 依存: IUserService, INotification
 ```
 
@@ -184,11 +232,27 @@ npm run analyze analyze-symbol INotificationService
 
 関数の参照を確認：
 ```bash
-# notifyメソッドの参照を確認
-npm run analyze analyze-symbol notify
+# メソッドの参照を確認
+npx symref analyze-symbol setUserService
 
-# getUserメソッドの参照を確認
-npm run analyze analyze-symbol getUser
+# プロパティの参照を確認
+npx symref analyze-symbol userService
+
+# クラスメソッドの参照を確認
+npx symref analyze-symbol getUser
+```
+
+または、package.jsonのscriptsを使用する場合：
+
+```bash
+# メソッドの参照を確認
+npm run analyze setUserService
+
+# プロパティの参照を確認
+npm run analyze userService
+
+# クラスメソッドの参照を確認
+npm run analyze getUser
 ```
 
 ### 2. ファイルの参照チェック

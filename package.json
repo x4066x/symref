@@ -1,6 +1,6 @@
 {
   "name": "symref",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,8 @@
     "symref": "./dist/cli.js"
   },
   "scripts": {
-    "analyze": "ts-node --project tsconfig.json cli.ts",
+    "refs": "ts-node --project tsconfig.json cli.ts refs",
+    "dead": "ts-node --project tsconfig.json cli.ts dead",
     "build": "tsc",
     "postbuild": "chmod +x ./dist/cli.js",
     "prepare": "npm run build",
@@ -37,11 +38,14 @@
     "chalk": "^5.3.0",
     "commander": "^11.0.0",
     "fs-extra": "^11.3.0",
+    "glob": "^11.0.1",
     "ts-morph": "^19.0.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
+    "@types/glob": "^8.1.0",
     "@types/node": "^22.13.5",
+    "symref": "^0.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
   }

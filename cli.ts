@@ -7,7 +7,7 @@ import chalk from 'chalk';
 const program = new Command();
 
 program
-    .name('code-analyzer')
+    .name('symref')
     .description(
         'TypeScript code reference analyzer - A tool for analyzing symbol references and detecting unused code\n\n' +
         'Features:\n' +
@@ -19,14 +19,14 @@ program
     .version('1.0.0')
     .addHelpText('after', `
 Examples:
-  $ code-analyzer analyze-symbol "MyClass,MyFunction"
-  $ code-analyzer analyze-symbol -p ./custom/tsconfig.json "IMyInterface"
-  $ code-analyzer check-file src/components/MyComponent.ts
+  $ symref refs "MyClass,MyFunction"
+  $ symref refs -p ./custom/tsconfig.json "IMyInterface"
+  $ symref dead src/components/MyComponent.ts
 
-For more information, visit: https://github.com/yourusername/ai-code-static-checker`);
+For more information, visit: https://github.com/x4066x/symref`);
 
 program
-    .command('analyze-symbol')
+    .command('refs')
     .description('Analyze references of specific symbols in the codebase')
     .argument('<symbols>', 
         'Comma-separated list of symbol names to analyze\n' +
@@ -37,7 +37,10 @@ program
         '  - Interfaces (e.g., "IMyInterface")\n' +
         '  - Variables (e.g., "myVariable")'
     )
-    .option('-p, --project <path>', 'Path to tsconfig.json (default: "tsconfig.json")')
+    .option('-d, --dir <path>', 'Base directory to start analysis from', process.cwd())
+    .option('-p, --project <path>', 'Optional path to tsconfig.json')
+    .option('--include <patterns>', 'Glob patterns to include (comma-separated)', '**/*.ts,**/*.tsx')
+    .option('--exclude <patterns>', 'Glob patterns to exclude (comma-separated)', '**/node_modules/**')
     .addHelpText('after', `
 Output information:
   - File path (relative to project root)
@@ -45,20 +48,34 @@ Output information:
   - Context (containing class, method, or interface)
   - Symbol type (class, function, interface, or variable)`)
     .action(async (symbols, options) => {
-        const analyzer = new StaticCodeChecker(options.project);
+        const analyzer = new StaticCodeChecker({
+            basePath: options.dir,
+            tsConfigPath: options.project,
+            includePatterns: options.include.split(','),
+            excludePatterns: options.exclude.split(',')
+        });
         const symbolList = symbols.split(',').map((s: string) => s.trim());
 
         for (const symbol of symbolList) {
             const result = analyzer.analyzeSymbol(symbol);
 
             console.log(chalk.cyan(`\n=== Analyzing symbol: ${symbol} ===`));
+            // 定義情報を表示
+            console.log(chalk.blue('Definition:'));
+            console.log(`  File: ${result.definition.filePath}`);
+            console.log(`  Line: ${result.definition.line}, Column: ${result.definition.column}`);
+            console.log(`  Type: ${result.type}`);
+            console.log(`  Context: ${result.definition.context}\n`);
+
             if (result.references.length > 0) {
-                console.log(chalk.green(`✓ Found ${result.references.length} references to ${result.type} '${symbol}':\n`));
+                console.log(chalk.green(`✓ Found ${result.references.length} references to ${result.type} '${symbol}':`));
                 result.references.forEach(ref => {
-                    console.log(chalk.blue(`File: ${ref.filePath}`));
+                    const isSameFile = ref.filePath === result.definition.filePath;
+                    console.log(`\nFile: ${ref.filePath}${isSameFile ? ' (same as definition)' : ''}`);
                     console.log(`  Line: ${ref.line}, Column: ${ref.column}`);
-                    console.log(`  Context: ${ref.context}\n`);
+                    console.log(`  Context: ${ref.context}`);
                 });
+                console.log(); // 空行を追加
             } else {
                 console.log(chalk.yellow(`⚠ Warning: No references found for ${result.type} '${symbol}'\n`));
             }
@@ -67,7 +84,7 @@ Output information:
     );
 
 program
-    .command('check-file')
+    .command('dead')
     .description('Check for unreferenced symbols in a TypeScript file')
     .argument('<file>', 
         'Path to the TypeScript file to analyze\n' +
@@ -77,23 +94,36 @@ program
         '  - Unreferenced interfaces\n' +
         '  - Unreferenced variables'
     )
-    .option('-p, --project <path>', 'Path to tsconfig.json (default: "tsconfig.json")')
+    .option('-d, --dir <path>', 'Base directory to start analysis from', process.cwd())
+    .option('-p, --project <path>', 'Optional path to tsconfig.json')
+    .option('--include <patterns>', 'Glob patterns to include (comma-separated)', '**/*.ts,**/*.tsx')
+    .option('--exclude <patterns>', 'Glob patterns to exclude (comma-separated)', '**/node_modules/**')
     .addHelpText('after', `
 Output information:
   - List of unreferenced symbols
   - Symbol types (class, function, interface, or variable)
   - Warning level indicators`)
     .action(async (file, options) => {
-        const analyzer = new StaticCodeChecker(options.project);
-        const unreferenced = analyzer.checkNewCode(file);
+        const analyzer = new StaticCodeChecker({
+            basePath: options.dir,
+            tsConfigPath: options.project,
+            includePatterns: options.include.split(','),
+            excludePatterns: options.exclude.split(',')
+        });
+        const unreferenced = analyzer.checkFile(file);
 
+        console.log(chalk.cyan(`\n=== Checking file: ${file} ===`));
         if (unreferenced.length > 0) {
-            console.log(chalk.yellow(`\n⚠ Warning: Found ${unreferenced.length} potentially unreferenced symbols:\n`));
-            unreferenced.forEach((symbol: string) => {
-                console.log(chalk.red(`• ${symbol}`));
+            console.log(chalk.yellow(`⚠ Found ${unreferenced.length} symbols with reference issues:\n`));
+            unreferenced.forEach(({type, name, context}: {type: string; name: string; context: string}) => {
+                console.log(chalk.blue(`File: ${file}`));
+                console.log(`  Type: ${type}`);
+                console.log(`  Name: ${name}`);
+                console.log(`  Context: ${context}`);
+                console.log(`  Status: Not referenced from other files (internal references are ignored)\n`);
             });
         } else {
-            console.log(chalk.green('\n✓ All symbols are referenced\n'));
+            console.log(chalk.green('✓ All symbols are referenced from other files'));
         }
     });
 

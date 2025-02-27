@@ -3,6 +3,8 @@
 import { Command } from 'commander';
 import { StaticCodeChecker } from './staticCodeChecker';
 import chalk from 'chalk';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const program = new Command();
 
@@ -48,40 +50,55 @@ Output information:
   - Context (containing class, method, or interface)
   - Symbol type (class, function, interface, or variable)`)
     .action(async (symbols, options) => {
-        const analyzer = new StaticCodeChecker({
-            basePath: options.dir,
-            tsConfigPath: options.project,
-            includePatterns: options.include.split(','),
-            excludePatterns: options.exclude.split(',')
-        });
-        const symbolList = symbols.split(',').map((s: string) => s.trim());
+        try {
+            const analyzer = new StaticCodeChecker({
+                basePath: options.dir,
+                tsConfigPath: options.project,
+                includePatterns: options.include.split(','),
+                excludePatterns: options.exclude.split(',')
+            });
 
-        for (const symbol of symbolList) {
-            const result = analyzer.analyzeSymbol(symbol);
+            const symbolList = symbols.split(',').map((s: string) => s.trim());
 
-            console.log(chalk.cyan(`\n=== Analyzing symbol: ${symbol} ===`));
-            // 定義情報を表示
-            console.log(chalk.blue('Definition:'));
-            console.log(`  File: ${result.definition.filePath}`);
-            console.log(`  Line: ${result.definition.line}, Column: ${result.definition.column}`);
-            console.log(`  Type: ${result.type}`);
-            console.log(`  Context: ${result.definition.context}\n`);
+            for (const symbol of symbolList) {
+                try {
+                    const result = analyzer.analyzeSymbol(symbol);
 
-            if (result.references.length > 0) {
-                console.log(chalk.green(`✓ Found ${result.references.length} references to ${result.type} '${symbol}':`));
-                result.references.forEach(ref => {
-                    const isSameFile = ref.filePath === result.definition.filePath;
-                    console.log(`\nFile: ${ref.filePath}${isSameFile ? ' (same as definition)' : ''}`);
-                    console.log(`  Line: ${ref.line}, Column: ${ref.column}`);
-                    console.log(`  Context: ${ref.context}`);
-                });
-                console.log(); // 空行を追加
-            } else {
-                console.log(chalk.yellow(`⚠ Warning: No references found for ${result.type} '${symbol}'\n`));
+                    console.log(chalk.cyan(`\n=== Analyzing symbol: ${symbol} ===`));
+                    console.log(chalk.blue('Definition:'));
+                    console.log(`  File: ${result.definition.filePath}`);
+                    console.log(`  Line: ${result.definition.line}, Column: ${result.definition.column}`);
+                    console.log(`  Type: ${result.type}`);
+                    console.log(`  Context: ${result.definition.context}\n`);
+
+                    if (result.references.length > 0) {
+                        console.log(chalk.green(`✓ Found ${result.references.length} references to ${result.type} '${symbol}':`))
+                        result.references.forEach(ref => {
+                            const isSameFile = ref.filePath === result.definition.filePath;
+                            console.log(`\nFile: ${ref.filePath}${isSameFile ? ' (same as definition)' : ''}`);
+                            console.log(`  Line: ${ref.line}, Column: ${ref.column}`);
+                            console.log(`  Context: ${ref.context}`);
+                        });
+                        console.log();
+                    } else {
+                        console.log(chalk.yellow(`⚠ Warning: No references found for ${result.type} '${symbol}'\n`));
+                    }
+                } catch (error) {
+                    console.log(chalk.red(`\n=== Error analyzing symbol: ${symbol} ===`));
+                    if (error instanceof Error) {
+                        console.log(chalk.yellow(error.message));
+                    }
+                    console.log();
+                }
             }
+        } catch (error) {
+            console.error(chalk.red('Error initializing analyzer:'));
+            if (error instanceof Error) {
+                console.error(chalk.yellow(error.message));
+            }
+            process.exit(1);
         }
-        }
-    );
+    });
 
 program
     .command('dead')
@@ -104,26 +121,45 @@ Output information:
   - Symbol types (class, function, interface, or variable)
   - Warning level indicators`)
     .action(async (file, options) => {
-        const analyzer = new StaticCodeChecker({
-            basePath: options.dir,
-            tsConfigPath: options.project,
-            includePatterns: options.include.split(','),
-            excludePatterns: options.exclude.split(',')
-        });
-        const unreferenced = analyzer.checkFile(file);
+        try {
+            const absolutePath = path.resolve(options.dir, file);
+            if (!fs.existsSync(absolutePath)) {
+                console.error(chalk.red(`\nError: File not found: ${file}`));
+                console.log(chalk.yellow('\nPlease check:'));
+                console.log('1. The file path is correct');
+                console.log('2. The file exists in the specified directory');
+                console.log(`3. You have read permissions for the file\n`);
+                process.exit(1);
+            }
 
-        console.log(chalk.cyan(`\n=== Checking file: ${file} ===`));
-        if (unreferenced.length > 0) {
-            console.log(chalk.yellow(`⚠ Found ${unreferenced.length} symbols with reference issues:\n`));
-            unreferenced.forEach(({type, name, context}: {type: string; name: string; context: string}) => {
-                console.log(chalk.blue(`File: ${file}`));
-                console.log(`  Type: ${type}`);
-                console.log(`  Name: ${name}`);
-                console.log(`  Context: ${context}`);
-                console.log(`  Status: Not referenced from other files (internal references are ignored)\n`);
+            const analyzer = new StaticCodeChecker({
+                basePath: options.dir,
+                tsConfigPath: options.project,
+                includePatterns: options.include.split(','),
+                excludePatterns: options.exclude.split(',')
             });
-        } else {
-            console.log(chalk.green('✓ All symbols are referenced from other files'));
+
+            const unreferenced = analyzer.checkFile(file);
+
+            console.log(chalk.cyan(`\n=== Checking file: ${file} ===`));
+            if (unreferenced.length > 0) {
+                console.log(chalk.yellow(`⚠ Found ${unreferenced.length} symbols with reference issues:\n`));
+                unreferenced.forEach(({type, name, context}: {type: string; name: string; context: string}) => {
+                    console.log(chalk.blue(`File: ${file}`));
+                    console.log(`  Type: ${type}`);
+                    console.log(`  Name: ${name}`);
+                    console.log(`  Context: ${context}`);
+                    console.log(`  Status: Not referenced from other files (internal references are ignored)\n`);
+                });
+            } else {
+                console.log(chalk.green('✓ All symbols are referenced from other files'));
+            }
+        } catch (error) {
+            console.error(chalk.red('\nError analyzing file:'));
+            if (error instanceof Error) {
+                console.error(chalk.yellow(error.message));
+            }
+            process.exit(1);
         }
     });
 

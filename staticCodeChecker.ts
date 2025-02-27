@@ -106,20 +106,10 @@ export class StaticCodeChecker {
         }
 
         if (!definitionNode) {
-            const defPos = { line: 0, column: 0 };
-            const defFilePath = '';
-            return {
-                symbol: symbolName,
-                type: 'function',
-                definition: {
-                    filePath: defFilePath,
-                    line: defPos.line,
-                    column: defPos.column,
-                    context: 'global scope'
-                },
-                references: [],
-                isReferenced: false
-            };
+            throw new Error(`Symbol '${symbolName}' was not found in the codebase. Please check:
+1. The symbol name is correct and matches exactly (case-sensitive)
+2. The symbol is defined in one of the analyzed files
+3. The file containing the symbol is included in the search path`);
         }
 
         // シンボルの種類を判定

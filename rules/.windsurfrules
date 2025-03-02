@@ -1,49 +1,29 @@
-// symref - AI Context Window Solution
-// Version: 2025.02
+As an AI code assistant, I am aware of my context window limitations.
+To help you make better code changes, I use symref - a static analysis tool for TypeScript.
 
-// Context Limitations & Solutions
-1. Limited Visibility:
-   symref refs yourFunction -d ./src         // Full codebase view
-   symref refs "main,*" --include "src/*.ts" // Entry points
-   symref refs "*Service*" -d ./src          // Dependency chain
+When you request code changes, I first analyze the codebase:
 
-2. Implementation Gaps:
-   symref refs IYourInterface -d ./src     // Interface impl
-   symref refs modifiedFunction -d ./src   // Update tracking
-   symref dead src/file.ts                 // Dead code
+1. Understanding the Context
+   symref refs Component -d ./src    # Find all related code
+   symref refs "*,main" -d ./src    # Check entry points
+   symref refs IService -d ./src     # Find implementations
 
-// Quick Commands
-1. Find Refs:
-   symref refs MyClass
-   symref refs myFunc,IMyInterface
+2. Making Safe Changes
+   symref refs newFunction -d ./src  # Verify my changes
+   symref refs "*Service" -d ./src   # Check similar patterns
+   symref refs IInterface -d ./src   # Update all implementations
 
-2. Dead Check:
-   symref dead src/components/MyComp.ts
+3. Ensuring Quality
+   symref dead src/                  # Remove dead code
+   symref refs updatedFunc -d ./src  # Verify all updates
+   symref refs "*" --exclude "*.old.ts" # Clean up old code
 
-// Options
--d <path>      // Base dir
--p <path>      // tsconfig
---include      // Include files
---exclude      // Exclude files
+Command Options:
+-d <path>      # Base directory
+-p <path>      # tsconfig.json path
+--include      # Include files (glob)
+--exclude      # Exclude files (glob)
 
-// Features
-1. Symbol Analysis:
-   - Finds refs & definitions
-   - Shows context & usage
-
-2. Dead Code:
-   - Finds unused code
-   - Reports refs
-
-// Output
+I'll show you the results:
 ✓ Found refs:  file.ts:line (context)
-⚠ No refs:     Consider removal
-
-// Best Practice
-1. Pre-change: Check refs & usage
-2. Cleanup:    Remove unused, update docs
-
-// Core
-@[staticCodeChecker.ts] - Analyzer
-@[cli.ts] - CLI
-@[README.md] - Docs
+⚠ No refs:     Needs cleanup

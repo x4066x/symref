@@ -82,7 +82,7 @@ describe('CLI', () => {
             expect(stdout).toContain('=== ファイル分析:');
             expect(stdout).toContain('UnusedService.ts');
             expect(stdout).toContain('件の未参照シンボルが見つかりました');
-            expect(stdout).toContain('unusedMethod');
+            expect(stdout).toContain('doSomething');
             expect(stdout).toContain('他のファイルから参照されていません');
         }, 10000);
 

@@ -1,6 +1,6 @@
 {
   "name": "symref",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -34,7 +34,6 @@
     "url": "https://github.com/x4066x/ai-code-static-checker/issues"
   },
   "dependencies": {
-    "ai-code-static-checker": "^0.1.6",
     "chalk": "^5.3.0",
     "commander": "^11.0.0",
     "fs-extra": "^11.3.0",
@@ -47,7 +46,6 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.5",
     "jest": "^29.7.0",
-    "symref": "^0.2.0",
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"

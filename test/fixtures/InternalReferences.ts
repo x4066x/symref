@@ -1,10 +1,14 @@
-export class TestClass {
+export class InternalClass {
     private internalMethod() {
-        this.publicMethod();
+        // 内部参照
+        const instance = new InternalClass();
+        instance.publicMethod();
         this.privateMethod();
     }
 
     public publicMethod() {
+        // 内部参照
+        const instance = new InternalClass();
         return 'test';
     }
 

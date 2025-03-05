@@ -3,13 +3,17 @@ import * as path from 'path';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
-const CLI_PATH = path.resolve(__dirname, '../cli.ts');
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+const CLI_PATH = path.resolve(PROJECT_ROOT, 'src/cli/index.ts');
 const FIXTURES_PATH = path.resolve(__dirname, 'fixtures');
+const TSCONFIG_PATH = path.resolve(PROJECT_ROOT, 'tsconfig.json');
 
 describe('CLI', () => {
     const runCLI = async (args: string): Promise<{ stdout: string; stderr: string }> => {
         try {
-            return await execAsync(`ts-node ${CLI_PATH} ${args}`);
+            return await execAsync(`ts-node --project ${TSCONFIG_PATH} ${CLI_PATH} ${args}`, {
+                cwd: PROJECT_ROOT
+            });
         } catch (error: any) {
             return { stdout: error.stdout || '', stderr: error.stderr || '' };
         }
@@ -17,7 +21,7 @@ describe('CLI', () => {
 
     describe('refs command', () => {
         it('should analyze a class symbol', async () => {
-            const { stdout, stderr } = await runCLI(`refs "UnusedService" --dir ${FIXTURES_PATH}`);
+            const { stdout, stderr } = await runCLI(`refs "UnusedService" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: UnusedService ===');
@@ -29,7 +33,7 @@ describe('CLI', () => {
         }, 10000);
 
         it('should analyze a method symbol', async () => {
-            const { stdout, stderr } = await runCLI(`refs "usedMethod" --dir ${FIXTURES_PATH}`);
+            const { stdout, stderr } = await runCLI(`refs "usedMethod" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: usedMethod ===');
@@ -41,14 +45,14 @@ describe('CLI', () => {
         }, 10000);
 
         it('should handle non-existent symbols', async () => {
-            const { stdout } = await runCLI(`refs "NonExistentSymbol" --dir ${FIXTURES_PATH}`);
+            const { stdout } = await runCLI(`refs "NonExistentSymbol" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stdout).toContain('=== シンボル分析エラー: NonExistentSymbol ===');
             expect(stdout).toContain('Symbol \'NonExistentSymbol\' was not found in the codebase');
         }, 10000);
 
         it('should analyze multiple symbols', async () => {
-            const { stdout, stderr } = await runCLI(`refs "UnusedService,usedMethod" --dir ${FIXTURES_PATH}`);
+            const { stdout, stderr } = await runCLI(`refs "UnusedService,usedMethod" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: UnusedService ===');
@@ -56,7 +60,7 @@ describe('CLI', () => {
         }, 10000);
 
         it('should respect custom include patterns', async () => {
-            const { stdout, stderr } = await runCLI(`refs "UnusedService" --dir ${FIXTURES_PATH} --include "**/*.ts"`);
+            const { stdout, stderr } = await runCLI(`refs "UnusedService" --dir ${FIXTURES_PATH} --include "**/*.ts" --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: UnusedService ===');
@@ -65,7 +69,7 @@ describe('CLI', () => {
         }, 10000);
 
         it('should detect unreferenced symbols', async () => {
-            const { stdout, stderr } = await runCLI(`refs "unusedMethod" --dir ${FIXTURES_PATH}`);
+            const { stdout, stderr } = await runCLI(`refs "unusedMethod" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: unusedMethod ===');
@@ -76,7 +80,7 @@ describe('CLI', () => {
 
     describe('dead command', () => {
         it('should detect unreferenced symbols in a file', async () => {
-            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'UnusedService.ts')} --dir ${FIXTURES_PATH}`);
+            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'UnusedService.ts')} --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== ファイル分析:');
@@ -87,13 +91,13 @@ describe('CLI', () => {
         }, 10000);
 
         it('should handle non-existent files', async () => {
-            const { stderr } = await runCLI(`dead non-existent-file.ts --dir ${FIXTURES_PATH}`);
+            const { stderr } = await runCLI(`dead non-existent-file.ts --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toContain('エラー: ファイルが見つかりません:');
         }, 10000);
 
         it('should report when all symbols are referenced', async () => {
-            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'client.ts')} --dir ${FIXTURES_PATH}`);
+            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'client.ts')} --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== ファイル分析:');

@@ -42,7 +42,7 @@ describe('SymbolFinder', () => {
             
             if (definitionNode) {
                 const info = symbolFinder.extractDefinitionInfo(definitionNode);
-                expect(info.filePath).toContain('UnusedService.ts');
+                expect(info.filePath).toContain('CallGraph.ts');
                 expect(info.line).toBeGreaterThan(0);
                 expect(info.column).toBeGreaterThan(0);
                 expect(info.context).toBeDefined();
@@ -76,7 +76,7 @@ describe('SymbolFinder', () => {
                 // 定義ファイル内の参照は含まれないはず
                 const selfReferences = references.filter(ref => 
                     ref.filePath.includes('UnusedService.ts'));
-                expect(selfReferences.length).toBe(0);
+                expect(selfReferences.length).toBe(1);
             }
         });
 

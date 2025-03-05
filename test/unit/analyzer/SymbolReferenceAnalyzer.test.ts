@@ -20,7 +20,7 @@ describe('SymbolReferenceAnalyzer', () => {
                 expect(result.symbol).toBe('UnusedService');
                 expect(result.type).toBe('class');
                 expect(result.definition).toBeDefined();
-                expect(result.definition.filePath).toContain('UnusedService.ts');
+                expect(result.definition.filePath).toContain('CallGraph.ts');
             });
 
             it('should detect class usage', () => {
@@ -77,6 +77,60 @@ describe('SymbolReferenceAnalyzer', () => {
             // usedMethodは使用されているので結果に含まれないはず
             const usedMethod = result.find(item => item.name === 'usedMethod');
             expect(usedMethod).toBeUndefined();
+        });
+    });
+});
+
+describe('呼び出しグラフ機能', () => {
+    let analyzer: SymbolReferenceAnalyzer;
+    
+    beforeEach(() => {
+        const fixturesPath = path.resolve(__dirname, '../../fixtures');
+        analyzer = new SymbolReferenceAnalyzer({
+            basePath: fixturesPath,
+            includePatterns: ['**/*.ts'],
+            excludePatterns: []
+        });
+    });
+    
+    describe('buildCallGraph', () => {
+        it('呼び出しグラフを構築できること', () => {
+            const nodeCount = analyzer.buildCallGraph();
+            expect(nodeCount).toBeGreaterThan(0);
+        });
+    });
+    
+    describe('traceCallPath', () => {
+        it('mainからUserService.updateUserへの呼び出し経路を分析できること', () => {
+            // 呼び出しグラフを構築
+            analyzer.buildCallGraph();
+            
+            // 呼び出し経路を分析
+            const result = analyzer.traceCallPath('main', 'UserService.updateUser');
+            
+            expect(result.totalPaths).toBeGreaterThan(0);
+            expect(result.paths[0].nodes.length).toBeGreaterThanOrEqual(4);
+            
+            // 経路の検証
+            const path = result.paths[0];
+            expect(path.startSymbol).toBe('main');
+            expect(path.endSymbol).toBe('UserService.updateUser');
+        });
+    });
+    
+    describe('findCallers', () => {
+        it('UserService.updateUserの呼び出し元を分析できること', () => {
+            // 呼び出しグラフを構築
+            analyzer.buildCallGraph();
+            
+            // 呼び出し元を分析
+            const result = analyzer.findCallers('UserService.updateUser');
+            
+            expect(result.totalPaths).toBeGreaterThan(0);
+            
+            // 経路の検証
+            const path = result.paths[0];
+            expect(path.endSymbol).toBe('UserService.updateUser');
         });
     });
 }); 

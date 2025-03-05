@@ -1,20 +1,21 @@
 {
   "compilerOptions": {
     "target": "es2018",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "outDir": "./dist",
     "esModuleInterop": true,
-    "moduleResolution": "node",
     "resolveJsonModule": true,
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "composite": true,
+    "incremental": true
   },
-  "include": ["*.ts", "src/**/*.ts", "samples/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": ["*.ts", "src/**/*.ts", "samples/**/*.ts", "test/fixtures/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -1,78 +1,85 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { RefsCommand, DeadCommand } from './commands';
+import { RefsCommand, DeadCommand, TraceCommand, CallersCommand } from './commands';
 
 /**
- * CLIプログラムを実行する
+ * CLIエントリーポイント
  */
-export function runCli(): void {
+export function runCli() {
     const program = new Command();
-
+    
     program
         .name('symref')
-        .description(
-            'TypeScriptコード参照分析ツール - シンボル参照の分析と未使用コードの検出\n\n' +
-            '機能:\n' +
-            '  - 特定のシンボル（関数、クラス、インターフェースなど）へのすべての参照を検索\n' +
-            '  - TypeScriptファイル内の未参照シンボルを検出\n' +
-            '  - 参照コンテキスト（含まれるクラス、メソッド、インターフェースなど）を表示\n' +
-            '  - 複数シンボルの一括分析をサポート'
-        )
-        .version('1.0.0')
-        .addHelpText('after', `
-使用例:
-  $ symref refs "MyClass,MyFunction"
-  $ symref refs -p ./custom/tsconfig.json "IMyInterface"
-  $ symref dead src/components/MyComponent.ts
-
-詳細情報: https://github.com/x4066x/symref`);
+        .description('TypeScriptコードベースのシンボル参照分析ツール')
+        .version('0.6.0')
+        .option('-p, --project <path>', 'TypeScriptプロジェクトの設定ファイル（tsconfig.json）のパス', 'tsconfig.json');
 
     program
-        .command('refs')
-        .description('コードベース内の特定シンボルの参照を分析')
-        .argument('<symbols>', 
-            'カンマ区切りのシンボル名リスト\n' +
-            '例: "MyClass,myFunction,IMyInterface"\n' +
-            'サポートされるシンボルタイプ:\n' +
-            '  - クラス (例: "MyClass")\n' +
-            '  - 関数 (例: "myFunction")\n' +
-            '  - インターフェース (例: "IMyInterface")\n' +
-            '  - 変数 (例: "myVariable")'
-        )
-        .option('-d, --dir <path>', '分析を開始するベースディレクトリ', process.cwd())
-        .option('-p, --project <path>', 'tsconfig.jsonへのオプショナルパス')
-        .option('--include <patterns>', '含めるグロブパターン（カンマ区切り）', '**/*.ts,**/*.tsx')
-        .option('--exclude <patterns>', '除外するグロブパターン（カンマ区切り）', '**/node_modules/**')
-        .addHelpText('after', `
-出力情報:
-  - ファイルパス（プロジェクトルートからの相対パス）
-  - 行番号と列番号
-  - コンテキスト（含まれるクラス、メソッド、インターフェースなど）
-  - シンボルタイプ（クラス、関数、インターフェース、変数）`)
-        .action(RefsCommand.execute);
+        .command('refs <symbol>')
+        .description('指定されたシンボルの参照を検索します')
+        .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
+        .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
+        .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
+        .option('-a, --all', '内部参照も含める', false)
+        .action((symbol, options) => {
+            RefsCommand.execute(symbol, {
+                dir: options.dir,
+                include: options.include,
+                exclude: options.exclude,
+                all: options.all,
+                project: program.opts().project
+            });
+        });
 
     program
-        .command('dead')
-        .description('TypeScriptファイル内の未参照シンボルをチェック')
-        .argument('<file>', 
-            '分析するTypeScriptファイルへのパス\n' +
-            'ツールは以下をスキャンします:\n' +
-            '  - 未参照の関数\n' +
-            '  - 未参照のクラス\n' +
-            '  - 未参照のインターフェース\n' +
-            '  - 未参照の変数'
-        )
-        .option('-d, --dir <path>', '分析を開始するベースディレクトリ', process.cwd())
-        .option('-p, --project <path>', 'tsconfig.jsonへのオプショナルパス')
-        .option('--include <patterns>', '含めるグロブパターン（カンマ区切り）', '**/*.ts,**/*.tsx')
-        .option('--exclude <patterns>', '除外するグロブパターン（カンマ区切り）', '**/node_modules/**')
-        .addHelpText('after', `
-出力情報:
-  - 未参照シンボルのリスト
-  - シンボルタイプ（クラス、関数、インターフェース、変数）
-  - 警告レベルインジケーター`)
-        .action(DeadCommand.execute);
+        .command('dead <file>')
+        .description('ファイル内の未使用シンボルを検出します')
+        .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
+        .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
+        .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
+        .action((file, options) => {
+            DeadCommand.execute(file, {
+                dir: options.dir,
+                include: options.include,
+                exclude: options.exclude,
+                project: program.opts().project
+            });
+        });
+
+    program
+        .command('trace <args>')
+        .description('シンボル間の呼び出し経路を分析します')
+        .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
+        .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
+        .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
+        .option('--dot <file>', 'DOT形式のグラフファイルを出力')
+        .action((args, options) => {
+            TraceCommand.execute(args, {
+                dir: options.dir,
+                include: options.include,
+                exclude: options.exclude,
+                dot: options.dot,
+                project: program.opts().project
+            });
+        });
+
+    program
+        .command('callers <symbol>')
+        .description('シンボルの呼び出し元を分析します')
+        .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
+        .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
+        .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
+        .option('--dot <file>', 'DOT形式のグラフファイルを出力')
+        .action((symbol, options) => {
+            CallersCommand.execute(symbol, {
+                dir: options.dir,
+                include: options.include,
+                exclude: options.exclude,
+                dot: options.dot,
+                project: program.opts().project
+            });
+        });
 
     program.parse();
 }

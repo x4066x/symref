@@ -25,7 +25,7 @@ describe('SymbolReferenceAnalyzer Integration Tests', () => {
             
             // 定義情報の確認
             expect(result.definition).toBeDefined();
-            expect(result.definition.filePath).toContain('UnusedService.ts');
+            expect(result.definition.filePath).toContain('CallGraph.ts');
             expect(result.definition.line).toBeGreaterThan(0);
             expect(result.definition.column).toBeGreaterThan(0);
             

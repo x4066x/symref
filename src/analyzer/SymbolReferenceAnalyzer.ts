@@ -1,9 +1,10 @@
 import { Node, SyntaxKind } from 'ts-morph';
 import * as path from 'path';
-import { AnalyzerOptions, SymbolAnalysisOptions, ReferenceResult, SymbolInfo } from '../types';
+import { AnalyzerOptions, SymbolAnalysisOptions, ReferenceResult, SymbolInfo, CallGraphResult } from '../types';
 import { ProjectManager } from './ProjectManager';
 import { SymbolFinder } from './SymbolFinder';
 import { NodeUtils } from '../utils/NodeUtils';
+import { CallGraphAnalyzer } from './CallGraphAnalyzer';
 
 /**
  * TypeScriptコードのシンボル参照を分析するクラス
@@ -12,6 +13,7 @@ export class SymbolReferenceAnalyzer {
     private projectManager: ProjectManager;
     private symbolFinder: SymbolFinder;
     private nodeUtils: NodeUtils;
+    private callGraphAnalyzer: CallGraphAnalyzer;
     private basePath: string;
 
     /**
@@ -23,6 +25,7 @@ export class SymbolReferenceAnalyzer {
         this.projectManager = new ProjectManager(options);
         this.symbolFinder = new SymbolFinder(this.projectManager.getProject());
         this.nodeUtils = new NodeUtils();
+        this.callGraphAnalyzer = new CallGraphAnalyzer(this.projectManager.getProject());
     }
 
     /**
@@ -281,5 +284,40 @@ export class SymbolReferenceAnalyzer {
         }
 
         return references;
+    }
+
+    /**
+     * 呼び出しグラフを構築する
+     * @returns 構築されたノード数
+     */
+    public buildCallGraph(): number {
+        return this.callGraphAnalyzer.buildCallGraph();
+    }
+
+    /**
+     * 2つのシンボル間の呼び出し経路を分析
+     * @param fromSymbol 開始シンボル
+     * @param toSymbol 終了シンボル
+     * @returns 呼び出し経路の分析結果
+     */
+    public traceCallPath(fromSymbol: string, toSymbol: string): CallGraphResult {
+        return this.callGraphAnalyzer.findPathsFromTo(fromSymbol, toSymbol);
+    }
+
+    /**
+     * シンボルを呼び出すすべての経路を分析
+     * @param symbol 対象シンボル
+     * @returns 呼び出し経路の分析結果
+     */
+    public findCallers(symbol: string): CallGraphResult {
+        return this.callGraphAnalyzer.findAllCallers(symbol);
+    }
+
+    /**
+     * プロジェクトインスタンスを取得する
+     * @returns プロジェクトインスタンス
+     */
+    public getProject() {
+        return this.projectManager.getProject();
     }
 } 

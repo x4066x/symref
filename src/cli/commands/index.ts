@@ -1,2 +1,4 @@
-export { RefsCommand } from './RefsCommand';
-export { DeadCommand } from './DeadCommand'; 
+export * from './RefsCommand';
+export * from './DeadCommand';
+export * from './TraceCommand';
+export * from './CallersCommand'; 

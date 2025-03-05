@@ -6,4 +6,6 @@ export interface CommonOptions {
     project?: string;
     include: string;
     exclude: string;
+    all?: boolean;
+    dot?: string;
 } 

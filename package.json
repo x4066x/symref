@@ -27,11 +27,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/x4066x/ai-code-static-checker.git"
+    "url": "git+https://github.com/x4066x/symref.git"
   },
-  "homepage": "https://github.com/x4066x/ai-code-static-checker#readme",
+  "homepage": "https://github.com/x4066x/symref#readme",
   "bugs": {
-    "url": "https://github.com/x4066x/ai-code-static-checker/issues"
+    "url": "https://github.com/x4066x/symref/issues"
   },
   "dependencies": {
     "chalk": "^5.3.0",

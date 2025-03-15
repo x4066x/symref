@@ -1,10 +1,12 @@
 import { Project, ScriptTarget, ModuleKind } from 'ts-morph';
 import * as path from 'path';
+import * as fs from 'fs';
 import { CallGraphAnalyzer } from '../../../src/analyzer/CallGraphAnalyzer';
 
 describe('CallGraphAnalyzer', () => {
     let project: Project;
     let analyzer: CallGraphAnalyzer;
+    let testOutputDir: string;
     
     beforeEach(() => {
         // テスト用のプロジェクトを設定
@@ -22,8 +24,21 @@ describe('CallGraphAnalyzer', () => {
         const fixturePath = path.resolve(__dirname, '../../fixtures/CallGraph.ts');
         project.addSourceFileAtPath(fixturePath);
         
+        // テスト用の出力ディレクトリを設定
+        testOutputDir = path.resolve(__dirname, '../../.symbols');
+        if (fs.existsSync(testOutputDir)) {
+            fs.rmSync(testOutputDir, { recursive: true, force: true });
+        }
+        
         // アナライザーを初期化
-        analyzer = new CallGraphAnalyzer(project);
+        analyzer = new CallGraphAnalyzer(project, testOutputDir);
+    });
+
+    afterEach(() => {
+        // テスト用の出力ディレクトリを削除
+        if (fs.existsSync(testOutputDir)) {
+            fs.rmSync(testOutputDir, { recursive: true, force: true });
+        }
     });
     
     describe('buildCallGraph', () => {
@@ -179,6 +194,38 @@ describe('CallGraphAnalyzer', () => {
             expect(updateUserNode?.symbol).toBe('UserService.updateUser');
             // 実際の型は'unknown'であることが判明したため、期待値を修正
             expect(updateUserNode?.type).toBe('unknown');
+        });
+    });
+
+    describe('出力ディレクトリの管理', () => {
+        it('.symbolsディレクトリが正しく作成されること', () => {
+            expect(fs.existsSync(testOutputDir)).toBe(true);
+        });
+
+        it('.gitignoreファイルが作成されること', () => {
+            const gitignorePath = path.join(testOutputDir, '.gitignore');
+            expect(fs.existsSync(gitignorePath)).toBe(true);
+            expect(fs.readFileSync(gitignorePath, 'utf-8')).toBe('*\n');
+        });
+
+        it('タイムスタンプ付きのファイル名が正しく生成されること', () => {
+            const result = analyzer.findPathsFromTo('main', 'UserService.updateUser');
+            const outputPath = result.outputPath;
+            
+            // outputPathが存在することを確認
+            expect(outputPath).toBeDefined();
+            if (!outputPath) return;
+            
+            // ファイル名のパターンを検証
+            expect(outputPath).toMatch(/^.*\/[^\/]+_\d{8}_\d{4}\.md$/);
+            
+            // ファイルの内容を検証
+            const content = result.graphMermaidFormat;
+            expect(content).toBeDefined();
+            if (!content) return;
+            
+            expect(content).toContain('```mermaid');
+            expect(content).toContain('classDiagram');
         });
     });
 }); 

@@ -1,5 +1,6 @@
 import { Project, Node, SyntaxKind } from 'ts-morph';
 import * as path from 'path';
+import * as fs from 'fs';
 import { CallGraphNode, CallEdge, CallPath, CallGraphResult, SymbolLocation } from '../types';
 import { NodeUtils } from '../utils/NodeUtils';
 
@@ -10,15 +11,52 @@ export class CallGraphAnalyzer {
     private project: Project;
     private nodeUtils: NodeUtils;
     private callGraph: Map<string, CallGraphNode>;
+    private outputDir: string;
 
     /**
      * コンストラクタ
      * @param project ts-morphのプロジェクトインスタンス
+     * @param outputDir 出力ディレクトリ（オプション）
      */
-    constructor(project: Project) {
+    constructor(project: Project, outputDir: string = '.symbols') {
         this.project = project;
         this.nodeUtils = new NodeUtils();
         this.callGraph = new Map<string, CallGraphNode>();
+        this.outputDir = outputDir;
+        this.ensureOutputDir();
+    }
+
+    /**
+     * 出力ディレクトリを確保
+     */
+    private ensureOutputDir(): void {
+        if (!fs.existsSync(this.outputDir)) {
+            fs.mkdirSync(this.outputDir, { recursive: true });
+        }
+
+        // .gitignoreファイルを作成
+        const gitignorePath = path.join(this.outputDir, '.gitignore');
+        if (!fs.existsSync(gitignorePath)) {
+            fs.writeFileSync(gitignorePath, '*\n');
+        }
+    }
+
+    /**
+     * グラフファイルの出力パスを生成
+     * @param baseName 基本ファイル名
+     * @returns 出力パス
+     */
+    private generateOutputPath(baseName: string): string {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const timestamp = `${year}${month}${day}_${hours}${minutes}`;
+        const safeBaseName = baseName.replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `${safeBaseName}_${timestamp}.md`;
+        return path.join(this.outputDir, fileName);
     }
 
     /**
@@ -268,10 +306,14 @@ export class CallGraphAnalyzer {
 
         this.dfsSearch(startNode, endNode, visited, currentPath, currentEdges, paths);
 
+        // グラフを生成
+        const { content, outputPath } = this.generateMermaidFormat(paths, `trace_${fromSymbol}_to_${toSymbol}`);
+
         return {
             paths,
             totalPaths: paths.length,
-            graphDotFormat: this.generateDotFormat(paths)
+            graphMermaidFormat: content,
+            outputPath
         };
     }
 
@@ -303,10 +345,14 @@ export class CallGraphAnalyzer {
             this.dfsReverseSearch(caller, visited, currentPath, currentEdges, paths);
         }
 
+        // グラフを生成
+        const { content, outputPath } = this.generateMermaidFormat(paths, `callers_${symbol}`);
+
         return {
             paths,
             totalPaths: paths.length,
-            graphDotFormat: this.generateDotFormat(paths)
+            graphMermaidFormat: content,
+            outputPath
         };
     }
 
@@ -423,37 +469,61 @@ export class CallGraphAnalyzer {
     }
 
     /**
-     * DOT形式のグラフを生成
+     * Mermaid形式のグラフを生成
      * @param paths 経路リスト
-     * @returns DOT形式の文字列
+     * @param baseName 基本ファイル名
+     * @returns Mermaid形式の文字列と出力パス
      */
-    private generateDotFormat(paths: CallPath[]): string {
-        let dot = 'digraph CallGraph {\n';
-        dot += '  node [shape=box, style=filled, fillcolor=lightblue];\n';
+    private generateMermaidFormat(paths: CallPath[], baseName: string): { content: string; outputPath: string } {
+        let mermaid = '```mermaid\n';
+        mermaid += 'classDiagram\n';
         
-        // ノードを追加
-        const addedNodes = new Set<string>();
-        const addedEdges = new Set<string>();
+        // クラスとメソッドの関係を整理
+        const classMethods = new Map<string, Set<string>>();
+        const methodCalls = new Set<string>();
         
+        // ノードとエッジを収集
         for (const path of paths) {
             for (const node of path.nodes) {
-                if (!addedNodes.has(node.symbol)) {
-                    const label = node.symbol.replace(/\./g, '\\n');
-                    dot += `  "${node.symbol}" [label="${label}", tooltip="${node.location.filePath}:${node.location.line}"];\n`;
-                    addedNodes.add(node.symbol);
+                const [className, methodName] = node.symbol.split('.');
+                if (methodName) {
+                    // クラスとメソッドの関係を記録
+                    if (!classMethods.has(className)) {
+                        classMethods.set(className, new Set());
+                    }
+                    classMethods.get(className)!.add(methodName);
                 }
             }
             
             for (const edge of path.edges) {
-                const edgeKey = `${edge.caller.symbol}->${edge.callee.symbol}`;
-                if (!addedEdges.has(edgeKey)) {
-                    dot += `  "${edge.caller.symbol}" -> "${edge.callee.symbol}";\n`;
-                    addedEdges.add(edgeKey);
+                const [callerClass, callerMethod] = edge.caller.symbol.split('.');
+                const [calleeClass, calleeMethod] = edge.callee.symbol.split('.');
+                
+                if (callerMethod && calleeMethod) {
+                    methodCalls.add(`${callerClass}.${callerMethod} --> ${calleeClass}.${calleeMethod}`);
                 }
             }
         }
         
-        dot += '}\n';
-        return dot;
+        // クラスとメソッドを出力
+        for (const [className, methods] of classMethods) {
+            mermaid += `  class ${className} {\n`;
+            for (const method of methods) {
+                mermaid += `    +${method}()\n`;
+            }
+            mermaid += '  }\n';
+        }
+        
+        // メソッド間の呼び出し関係を出力
+        for (const call of methodCalls) {
+            mermaid += `  ${call}\n`;
+        }
+        
+        mermaid += '```\n';
+
+        // 出力パスを生成
+        const outputPath = this.generateOutputPath(baseName);
+
+        return { content: mermaid, outputPath };
     }
 } 

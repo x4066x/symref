@@ -2,8 +2,10 @@
     "extends": "../tsconfig.json",
     "compilerOptions": {
         "noUnusedLocals": false,
-        "noUnusedParameters": false
+        "noUnusedParameters": false,
+        "rootDir": "..",
+        "baseUrl": ".."
     },
-    "include": ["**/*.ts"],
+    "include": ["**/*.ts", "../src/**/*.ts"],
     "exclude": ["node_modules"]
 }

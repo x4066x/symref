@@ -36,5 +36,6 @@ export interface CallEdge {
 export interface CallGraphResult {
     paths: CallPath[];
     totalPaths: number;
-    graphDotFormat?: string;
+    graphMermaidFormat?: string;
+    outputPath?: string;
 } 

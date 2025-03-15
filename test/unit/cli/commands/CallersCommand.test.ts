@@ -36,7 +36,7 @@ describe('CallersCommand', () => {
         mockExit.mockRestore();
     });
     
-    it('シンボルの呼び出し元を分析できること', () => {
+    it('シンボルの呼び出し元を分析できること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         CallersCommand.execute('UserService.updateUser', {
@@ -55,36 +55,7 @@ describe('CallersCommand', () => {
         expect(mockExit).not.toHaveBeenCalled();
     });
     
-    it('DOTファイルを生成できること', () => {
-        const fixturesPath = path.resolve(__dirname, '../../../fixtures');
-        const dotFilePath = path.resolve(__dirname, '../../../fixtures/callers-graph.dot');
-        
-        // テスト前にファイルが存在する場合は削除
-        if (fs.existsSync(dotFilePath)) {
-            fs.unlinkSync(dotFilePath);
-        }
-        
-        CallersCommand.execute('UserService.updateUser', {
-            dir: fixturesPath,
-            include: '**/*.ts',
-            exclude: '',
-            dot: dotFilePath
-        });
-        
-        // DOTファイルが生成されていることを確認
-        expect(fs.existsSync(dotFilePath)).toBeTruthy();
-        
-        // ファイルの内容を確認
-        const dotContent = fs.readFileSync(dotFilePath, 'utf-8');
-        expect(dotContent).toContain('digraph CallGraph');
-        expect(dotContent).toContain('UserService.updateUser');
-        expect(dotContent).toContain('UserController.processRequest');
-        
-        // テスト後にファイルを削除
-        fs.unlinkSync(dotFilePath);
-    });
-    
-    it('存在しないシンボルでエラーをスローすること', () => {
+    it('存在しないシンボルでエラーをスローすること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         CallersCommand.execute('NonExistentSymbol', {
@@ -98,7 +69,7 @@ describe('CallersCommand', () => {
         expect(mockExit).toHaveBeenCalledWith(1);
     });
     
-    it('呼び出し元が存在しない場合は適切なメッセージを表示すること', () => {
+    it('呼び出し元が存在しない場合は適切なメッセージを表示すること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         CallersCommand.execute('main', {
@@ -112,7 +83,7 @@ describe('CallersCommand', () => {
         expect(mockExit).not.toHaveBeenCalled();
     });
 
-    it('呼び出し位置情報が出力に含まれること', () => {
+    it('呼び出し位置情報が出力に含まれること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         CallersCommand.execute('UserService.validateUser', {
@@ -129,7 +100,7 @@ describe('CallersCommand', () => {
         expect(consoleOutput.some(output => output.includes('UserService.updateUser ('))).toBeTruthy();
     });
 
-    it('複数の呼び出し元が存在する場合はすべて表示されること', () => {
+    it('複数の呼び出し元が存在する場合はすべて表示されること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         // DatabaseService.saveDataは複数の場所から呼び出される可能性がある
@@ -151,7 +122,7 @@ describe('CallersCommand', () => {
         expect(mockExit).not.toHaveBeenCalled();
     });
 
-    it('呼び出し元の経路が複数ある場合はすべての経路が表示されること', () => {
+    it('呼び出し元の経路が複数ある場合はすべての経路が表示されること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         // UserService.validateUserの呼び出し元からmainまでの経路を検証

@@ -53,13 +53,13 @@ export function runCli() {
         .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
         .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
         .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
-        .option('--dot <file>', 'DOT形式のグラフファイルを出力')
+        .option('--mermaid <file>', 'Mermaid形式のグラフファイルを出力')
         .action((args, options) => {
             TraceCommand.execute(args, {
                 dir: options.dir,
                 include: options.include,
                 exclude: options.exclude,
-                dot: options.dot,
+                mermaid: options.mermaid,
                 project: program.opts().project
             });
         });
@@ -70,13 +70,13 @@ export function runCli() {
         .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
         .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
         .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
-        .option('--dot <file>', 'DOT形式のグラフファイルを出力')
+        .option('--mermaid <file>', 'Mermaid形式のグラフファイルを出力')
         .action((symbol, options) => {
             CallersCommand.execute(symbol, {
                 dir: options.dir,
                 include: options.include,
                 exclude: options.exclude,
-                dot: options.dot,
+                mermaid: options.mermaid,
                 project: program.opts().project
             });
         });

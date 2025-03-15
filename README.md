@@ -66,6 +66,12 @@
    - 循環参照の検出
    - デッドコードの特定
 
+3. **呼び出しグラフ分析**
+   - 関数やメソッド間の呼び出し関係の可視化
+   - シンボル間の呼び出し経路の追跡
+   - 呼び出し元の分析
+   - Mermaid形式でのグラフ出力
+
 ### AIエージェントサポート
 
 以下のAIコードエージェント用のルール定義を提供しています。内容はすべて同じです。
@@ -102,7 +108,9 @@ npx symref refs MyClass
 {
   "scripts": {
     "refs": "symref refs",
-    "dead": "symref dead"
+    "dead": "symref dead",
+    "trace": "symref trace",
+    "callers": "symref callers"
   }
 }
 ```
@@ -112,122 +120,213 @@ npx symref refs MyClass
 npm run refs MyClass
 ```
 
-オプション：
-- `-d, --dir`: 解析を開始するベースディレクトリを指定（デフォルト: カレントディレクトリ）
-- `-p, --project`: TypeScriptの設定ファイルを指定（オプショナル）
-- `--include`: 解析対象のファイルパターン（カンマ区切り、デフォルト: `**/*.ts,**/*.tsx`）
-- `--exclude`: 除外するファイルパターン（カンマ区切り、デフォルト: `**/node_modules/**`）
+### コマンドとオプション
 
-2. ファイル内の未参照シンボルのチェック
-
-指定したファイル内で、他の場所から参照されていないシンボルを検出します：
+#### `refs` - シンボル参照の解析
 
 ```bash
-symref dead src/myFile.ts
+symref refs [symbol] [options]
 ```
 
-オプション：
-- `--tsconfig`: TypeScriptの設定ファイルを指定（デフォルト: tsconfig.json）
+オプション:
+- `-d, --dir <path>`: 解析対象ディレクトリ
+- `-p, --project <path>`: TypeScript設定ファイル
+- `--include <pattern>`: 対象ファイルパターン
+- `--exclude <pattern>`: 除外ファイルパターン
+- `-a, --all`: 内部参照も含める
 
-### 使用例
-
-1. 基本的な使い方
-   ```bash
-   # 特定のディレクトリ内のTypeScriptファイルを解析
-   npx symref refs MyClass -d ./src
-   
-   # カスタムパターンでファイルを指定
-   npx symref refs MyClass --include "src/**/*.ts,libs/**/*.ts" --exclude "**/*.test.ts"
-   
-   # tsconfig.jsonを使用（オプショナル）
-   npx symref refs MyClass -d ./src -p ./tsconfig.json
-   ```
-
-2. package.jsonのscriptsを使用した例
-   ```json
-   {
-     "scripts": {
-       "refs": "symref refs",
-       "dead": "symref dead"
-     }
-   }
-   ```
-
-   ```bash
-   # 修正対象のディレクトリをチェック
-   npm run dead target.ts -- -d ./src
-   
-   # 関連するシンボルの参照を確認（テストを除外）
-   npm run refs TargetFunction -- --exclude "**/*.test.ts,**/*.spec.ts"
-   
-   # 新しく追加されたシンボルの参照を確認（特定のディレクトリのみ）
-   npm run refs NewFunction -- -d ./src --include "src/**/*.ts"
-   ```
-
-### ヘルプの表示
+#### `dead` - 未使用コードの検出
 
 ```bash
-# npxを使用する場合
-npx symref --help          # 全般的なヘルプ
-npx symref refs --help  # refsコマンドのヘルプ
-npx symref dead --help      # deadコマンドのヘルプ
-
-# package.jsonのscriptsを使用する場合
-npm run refs -- --help  # refsコマンドのヘルプ
-npm run dead -- --help    # deadコマンドのヘルプ
+symref dead [file] [options]
 ```
 
-## サンプルコード
+オプション:
+- `-d, --dir <path>`: 解析対象ディレクトリ
+- `-p, --project <path>`: TypeScript設定ファイル
+- `--include <pattern>`: 対象ファイルパターン
+- `--exclude <pattern>`: 除外ファイルパターン
 
-以下のコマンドでサンプルコードの解析を試すことができます：
+#### `trace` - 呼び出しグラフの分析
 
 ```bash
-# シンボル参照の解析
-npx symref refs UserService -d ./samples
-
-# 未使用シンボルのチェック
-npx symref dead ./samples/types.ts
+symref trace "<from> --to=<to>" [options]
 ```
 
-サンプルコードは `samples` ディレクトリにあり、TypeScriptの一般的なユースケースをカバーしています。
+例：
+```bash
+symref trace "main --to=UserService.updateUserEmail"
+```
 
-2. テスト容易性の向上
-   - インターフェースを介した疑似オブジェクトの作成が容易
-   - サービス間の結合度が低下
+オプション:
+- `-d, --dir <path>`: 解析対象ディレクトリ
+- `-p, --project <path>`: TypeScript設定ファイル
+- `--include <pattern>`: 対象ファイルパターン
+- `--exclude <pattern>`: 除外ファイルパターン
+- `--mermaid <file>`: Mermaid形式のグラフファイルを出力
 
-3. コードのメンテナンス性向上
-   - 型定義の一元管理
-   - サービス間の依存関係が明確
+#### `callers` - 呼び出し元の分析
 
-## 解析結果の見方
+```bash
+symref callers [symbol] [options]
+```
+
+オプション:
+- `-d, --dir <path>`: 解析対象ディレクトリ
+- `-p, --project <path>`: TypeScript設定ファイル
+- `--include <pattern>`: 対象ファイルパターン
+- `--exclude <pattern>`: 除外ファイルパターン
+- `--mermaid <file>`: Mermaid形式のグラフファイルを出力
+
+### 共通オプション
+
+- `--help`: ヘルプメッセージの表示
+- `--version`: バージョン情報の表示
+- `--debug`: デバッグモードの有効化
+- `--quiet`: 出力の抑制
 
 ### 出力形式
 
-```bash
-=== Analyzing symbol: SymbolName ===
-✓ Found X references  # 参照が見つかった場合
-⚠ No references found # 参照が見つからない場合
+1. **シンボル参照解析の出力**
+```json
+{
+  "symbol": "MyClass",
+  "type": "class",
+  "definition": {
+    "filePath": "src/MyClass.ts",
+    "line": 10,
+    "column": 5,
+    "context": "class MyClass"
+  },
+  "references": [
+    {
+      "filePath": "src/other.ts",
+      "line": 20,
+      "column": 15,
+      "context": "new MyClass()"
+    }
+  ],
+  "isReferenced": true
+}
 ```
 
-### 警告メッセージ
+2. **Mermaid形式（呼び出しグラフ）**
+```mermaid
+classDiagram
+  class UserService {
+    +createUser()
+    +updateUser()
+    +deleteUser()
+  }
+  class Database {
+    +connect()
+    +query()
+    +disconnect()
+  }
+  UserService --> Database
+```
 
-- ⚠ `No references found`: 未使用のシンボル
-- ⚠ `Multiple definitions found`: 同名のシンボルが複数存在
-- ⚠ `Circular dependency detected`: 循環参照の検出
+### エラーメッセージ
 
-## 機能
+主なエラーメッセージとその対処方法：
 
-- シンボル参照の特定と分析
-- 未使用コードの検出
-- 依存関係の分析
-- 循環参照の検出
+1. **ファイル関連**
+   - `ファイルが見つかりません: <file>`
+     - ファイルパスが正しいか確認
+     - 指定したディレクトリにファイルが存在するか確認
+     - ファイルの読み取り権限を確認
 
-## 最近の変更点
+2. **シンボル関連**
+   - `シンボル '<symbol>' が見つかりません`
+     - シンボル名が正しいか確認
+     - シンボルが定義されているファイルが解析対象に含まれているか確認
+     - 大文字小文字が一致しているか確認
 
-### バージョン 0.5.0
-- コードベースの大規模なリファクタリング
-- インターフェースの改善と型の強化
-- エラーハンドリングの強化
-- 日本語出力のサポート
-- テストカバレッジの向上
-- 列挙型（enum）の検出と参照分析のサポート
+3. **解析エラー**
+   - `アナライザーの初期化に失敗しました`
+     - TypeScript設定ファイルが正しいか確認
+     - 必要な依存関係がインストールされているか確認
+
+## 開発者向け情報
+
+### アーキテクチャ
+
+```
+src/
+├── analyzer/     # 静的解析エンジン
+│   ├── SymbolReferenceAnalyzer.ts  # シンボル参照解析
+│   ├── CallGraphAnalyzer.ts        # 呼び出しグラフ分析
+│   ├── SymbolFinder.ts            # シンボル検索
+│   └── ProjectManager.ts          # プロジェクト管理
+├── types/        # 型定義
+│   ├── CallGraphTypes.ts          # 呼び出しグラフ関連の型
+│   ├── SymbolTypes.ts            # シンボル関連の型
+│   └── AnalyzerOptions.ts        # 解析オプションの型
+├── cli/          # コマンドラインインターフェース
+│   ├── commands/                 # 各コマンドの実装
+│   └── formatters/              # 出力フォーマッター
+└── utils/        # ユーティリティ関数
+```
+
+### 主要な機能の実装詳細
+
+1. **シンボル参照解析**
+   - TypeScriptのAST解析による正確な参照検出
+   - クラスメンバー（メソッド、プロパティ）の個別参照分析
+   - 内部参照と外部参照の区別
+
+2. **呼び出しグラフ分析**
+   - 深さ優先探索による呼び出しパスの検索
+   - 逆方向の呼び出し元検索
+   - Mermaid形式でのグラフ出力
+
+3. **デッドコード検出**
+   - トップレベルのシンボル分析
+   - クラスメンバーの参照分析
+   - エクスポートされたシンボルの特別処理
+
+### パフォーマンス最適化
+
+1. **キャッシュ戦略**
+   - プロジェクトのキャッシュ
+   - 解析結果のキャッシュ
+   - ファイルシステムのキャッシュ
+
+2. **メモリ管理**
+   - 大規模プロジェクトの処理
+   - メモリリークの防止
+   - リソースの解放
+
+### 出力ディレクトリの管理
+
+symrefは、グラフファイルなどの出力を`.symbols`ディレクトリで一元管理します：
+
+1. **自動ディレクトリ作成**
+   - `.symbols`ディレクトリが自動的に作成されます
+   - `.gitignore`ファイルも自動生成され、出力ファイルがGitの管理対象外となります
+
+2. **タイムスタンプ付きファイル名**
+   - 出力ファイルには自動的にタイムスタンプが付与されます
+   - 形式：`{basename}_{YYYYMMDD}_{HHMM}.md`
+   - 例：`trace_main_to_UserService_20240316_1205.md`
+
+3. **ファイル管理**
+   - 古い出力ファイルは自動的に上書きされません
+   - 必要に応じて手動でクリーンアップできます
+
+### グラフの可視化
+
+symrefは、Mermaid形式でグラフを出力します。以下の方法で可視化できます：
+
+1. **GitHub上での表示**
+   - 生成されたMarkdownファイルをGitHubにプッシュすると、自動的にグラフが表示されます
+   - プルリクエストやイシューにも直接貼り付けることができます
+
+2. **Mermaid Live Editor**
+   - https://mermaid.live で開いて表示
+   - エディタ上で編集や調整が可能
+   - PNG/SVG形式でエクスポート可能
+
+3. **VSCode拡張機能**
+   - Mermaid Preview拡張機能をインストール
+   - エディタ上で直接プレビュー可能

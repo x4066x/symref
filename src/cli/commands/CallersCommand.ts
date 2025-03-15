@@ -37,9 +37,9 @@ export class CallersCommand {
             // 結果を表示
             CallersCommand.displayResult(result, symbol);
 
-            // DOTファイルを生成（オプション）
-            if (options.dot) {
-                CallersCommand.generateDotFile(result, options.dot);
+            // Mermaidファイルを生成（オプション）
+            if (options.mermaid) {
+                CallersCommand.generateMermaidFile(result, options.mermaid);
             }
         } catch (error: any) {
             console.error(`エラー: ${error.message}`);
@@ -95,23 +95,41 @@ export class CallersCommand {
     }
 
     /**
-     * DOTファイルを生成
+     * Mermaidファイルを生成
      * @param result 分析結果
      * @param outputPath 出力パス
      */
-    private static generateDotFile(result: CallGraphResult, outputPath: string): void {
-        if (!result.graphDotFormat) {
-            console.warn('警告: DOTグラフデータを生成できませんでした。');
+    private static generateMermaidFile(result: CallGraphResult, outputPath: string): void {
+        if (!result.graphMermaidFormat) {
+            console.warn('警告: Mermaidグラフデータを生成できませんでした。');
             return;
         }
 
         try {
-            const resolvedPath = path.resolve(process.cwd(), outputPath);
-            fs.writeFileSync(resolvedPath, result.graphDotFormat);
-            console.log(`DOTグラフファイルを生成しました: ${resolvedPath}`);
-            console.log('可視化するには: dot -Tpng -o graph.png ' + outputPath);
+            // 出力ディレクトリを.symbolsに変更
+            const outputDir = '.symbols';
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const timestamp = `${year}${month}${day}_${hours}${minutes}`;
+            const safeBaseName = outputPath.replace(/[^a-zA-Z0-9]/g, '_');
+            const fileName = `${safeBaseName}_${timestamp}.md`;
+            const resolvedPath = path.resolve(process.cwd(), outputDir, fileName);
+            
+            // 出力ディレクトリを確保
+            const dir = path.dirname(resolvedPath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+
+            fs.writeFileSync(resolvedPath, result.graphMermaidFormat);
+            console.log(`Mermaidグラフファイルを生成しました: ${resolvedPath}`);
+            console.log('可視化するには: GitHubで表示するか、https://mermaid.live で開いてください');
         } catch (error: any) {
-            console.error(`DOTファイルの生成中にエラーが発生しました: ${error.message}`);
+            console.error(`Mermaidファイルの生成中にエラーが発生しました: ${error.message}`);
         }
     }
 }

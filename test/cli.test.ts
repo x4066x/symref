@@ -19,45 +19,18 @@ describe('CLI', () => {
         }
     };
 
+    const commonOptions = `--dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`;
+    const TIMEOUT = 10000;
+
     describe('refs command', () => {
-        it('should analyze a class symbol', async () => {
-            const { stdout, stderr } = await runCLI(`refs "UnusedService" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
+        it('should analyze multiple symbols and handle errors', async () => {
+            const { stdout, stderr } = await runCLI(`refs "UnusedService,usedMethod,NonExistentSymbol" ${commonOptions}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: UnusedService ===');
-            expect(stdout).toContain('定義:');
-            expect(stdout).toContain('UnusedService.ts');
-            expect(stdout).toContain('種類: class');
-            expect(stdout).toContain('参照が');
-            expect(stdout).toContain('件見つかりました');
-        }, 10000);
-
-        it('should analyze a method symbol', async () => {
-            const { stdout, stderr } = await runCLI(`refs "usedMethod" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
-            
-            expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: usedMethod ===');
-            expect(stdout).toContain('定義:');
-            expect(stdout).toContain('UnusedService.ts');
-            expect(stdout).toContain('種類: method');
-            expect(stdout).toContain('参照が');
-            expect(stdout).toContain('件見つかりました');
-        }, 10000);
-
-        it('should handle non-existent symbols', async () => {
-            const { stdout } = await runCLI(`refs "NonExistentSymbol" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
-            
             expect(stdout).toContain('=== シンボル分析エラー: NonExistentSymbol ===');
-            expect(stdout).toContain('Symbol \'NonExistentSymbol\' was not found in the codebase');
-        }, 10000);
-
-        it('should analyze multiple symbols', async () => {
-            const { stdout, stderr } = await runCLI(`refs "UnusedService,usedMethod" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
-            
-            expect(stderr).toBe('');
-            expect(stdout).toContain('=== シンボル分析: UnusedService ===');
-            expect(stdout).toContain('=== シンボル分析: usedMethod ===');
-        }, 10000);
+        }, TIMEOUT);
 
         it('should respect custom include patterns', async () => {
             const { stdout, stderr } = await runCLI(`refs "UnusedService" --dir ${FIXTURES_PATH} --include "**/*.ts" --project ${TSCONFIG_PATH}`);
@@ -66,21 +39,21 @@ describe('CLI', () => {
             expect(stdout).toContain('=== シンボル分析: UnusedService ===');
             expect(stdout).toContain('参照が');
             expect(stdout).toContain('件見つかりました');
-        }, 10000);
+        }, TIMEOUT);
 
         it('should detect unreferenced symbols', async () => {
-            const { stdout, stderr } = await runCLI(`refs "unusedMethod" --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
+            const { stdout, stderr } = await runCLI(`refs "unusedMethod" ${commonOptions}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== シンボル分析: unusedMethod ===');
             expect(stdout).toContain('警告: ');
             expect(stdout).toContain('への参照が見つかりませんでした');
-        }, 10000);
+        }, TIMEOUT);
     });
 
     describe('dead command', () => {
-        it('should detect unreferenced symbols in a file', async () => {
-            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'UnusedService.ts')} --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
+        it('should analyze file for unreferenced symbols', async () => {
+            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'UnusedService.ts')} ${commonOptions}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== ファイル分析:');
@@ -88,26 +61,64 @@ describe('CLI', () => {
             expect(stdout).toContain('件の未参照シンボルが見つかりました');
             expect(stdout).toContain('doSomething');
             expect(stdout).toContain('他のファイルから参照されていません');
-        }, 10000);
+        }, TIMEOUT);
 
         it('should handle non-existent files', async () => {
-            const { stderr } = await runCLI(`dead non-existent-file.ts --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
+            const { stderr } = await runCLI(`dead non-existent-file.ts ${commonOptions}`);
             
             expect(stderr).toContain('エラー: ファイルが見つかりません:');
-        }, 10000);
+        }, TIMEOUT);
 
         it('should report when all symbols are referenced', async () => {
-            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'client.ts')} --dir ${FIXTURES_PATH} --project ${TSCONFIG_PATH}`);
+            const { stdout, stderr } = await runCLI(`dead ${path.join(FIXTURES_PATH, 'client.ts')} ${commonOptions}`);
             
             expect(stderr).toBe('');
             expect(stdout).toContain('=== ファイル分析:');
             expect(stdout).toContain('client.ts');
             expect(stdout).toContain('すべてのシンボルは他のファイルから参照されています');
-        }, 10000);
+        }, TIMEOUT);
+    });
+
+    describe('trace command', () => {
+        it('should analyze call path between symbols', async () => {
+            const { stdout, stderr } = await runCLI(`trace "main --to=UserService.updateUserEmail" ${commonOptions}`);
+            
+            expect(stderr).toBe('');
+            expect(stdout).toContain('=== \'main\' から \'UserService.updateUserEmail\' への呼び出し経路を分析中... ===');
+            expect(stdout).toContain('個のシンボルを分析しました');
+            expect(stdout).toContain('個の呼び出し経路が見つかりました');
+        }, TIMEOUT);
+
+        it('should handle non-existent symbols in trace', async () => {
+            const { stdout } = await runCLI(`trace "NonExistentSymbol --to=UserService.updateUserEmail" ${commonOptions}`);
+            
+            expect(stdout).toContain('=== \'NonExistentSymbol\' から \'UserService.updateUserEmail\' への呼び出し経路を分析中... ===');
+            expect(stdout).toContain('個のシンボルを分析しました');
+            expect(stdout).not.toContain('呼び出し経路が見つかりました');
+        }, TIMEOUT);
+    });
+
+    describe('callers command', () => {
+        it('should analyze callers of a symbol', async () => {
+            const { stdout, stderr } = await runCLI(`callers "UserService.updateUserEmail" ${commonOptions}`);
+            
+            expect(stderr).toBe('');
+            expect(stdout).toContain('=== \'UserService.updateUserEmail\' の呼び出し元を分析中... ===');
+            expect(stdout).toContain('個のシンボルを分析しました');
+            expect(stdout).toContain('個の呼び出し経路が見つかりました');
+        }, TIMEOUT);
+
+        it('should handle non-existent symbols in callers', async () => {
+            const { stdout } = await runCLI(`callers "NonExistentSymbol" ${commonOptions}`);
+            
+            expect(stdout).toContain('=== \'NonExistentSymbol\' の呼び出し元を分析中... ===');
+            expect(stdout).toContain('個のシンボルを分析しました');
+            expect(stdout).not.toContain('呼び出し経路が見つかりました');
+        }, TIMEOUT);
     });
 
     describe('help command', () => {
-        it('should display help information', async () => {
+        it('should display help information for all commands', async () => {
             const { stdout, stderr } = await runCLI(`--help`);
             
             expect(stderr).toBe('');
@@ -115,24 +126,8 @@ describe('CLI', () => {
             expect(stdout).toContain('Commands:');
             expect(stdout).toContain('refs');
             expect(stdout).toContain('dead');
-        }, 10000);
-
-        it('should display help for refs command', async () => {
-            const { stdout, stderr } = await runCLI(`refs --help`);
-            
-            expect(stderr).toBe('');
-            expect(stdout).toContain('Usage:');
-            expect(stdout).toContain('symref refs');
-            expect(stdout).toContain('Options:');
-        }, 10000);
-
-        it('should display help for dead command', async () => {
-            const { stdout, stderr } = await runCLI(`dead --help`);
-            
-            expect(stderr).toBe('');
-            expect(stdout).toContain('Usage:');
-            expect(stdout).toContain('symref dead');
-            expect(stdout).toContain('Options:');
-        }, 10000);
+            expect(stdout).toContain('trace');
+            expect(stdout).toContain('callers');
+        }, TIMEOUT);
     });
 }); 

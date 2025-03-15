@@ -36,7 +36,7 @@ describe('TraceCommand', () => {
         mockExit.mockRestore();
     });
     
-    it('正しい形式の引数で呼び出し経路を分析できること', () => {
+    it('正しい形式の引数で呼び出し経路を分析できること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         TraceCommand.execute('main --to=UserService.updateUser', {
@@ -55,36 +55,7 @@ describe('TraceCommand', () => {
         expect(mockExit).not.toHaveBeenCalled();
     });
     
-    it('DOTファイルを生成できること', () => {
-        const fixturesPath = path.resolve(__dirname, '../../../fixtures');
-        const dotFilePath = path.resolve(__dirname, '../../../fixtures/test-graph.dot');
-        
-        // テスト前にファイルが存在する場合は削除
-        if (fs.existsSync(dotFilePath)) {
-            fs.unlinkSync(dotFilePath);
-        }
-        
-        TraceCommand.execute('main --to=UserService.updateUser', {
-            dir: fixturesPath,
-            include: '**/*.ts',
-            exclude: '',
-            dot: dotFilePath
-        });
-        
-        // DOTファイルが生成されていることを確認
-        expect(fs.existsSync(dotFilePath)).toBeTruthy();
-        
-        // ファイルの内容を確認
-        const dotContent = fs.readFileSync(dotFilePath, 'utf-8');
-        expect(dotContent).toContain('digraph CallGraph');
-        expect(dotContent).toContain('main');
-        expect(dotContent).toContain('UserService.updateUser');
-        
-        // テスト後にファイルを削除
-        fs.unlinkSync(dotFilePath);
-    });
-    
-    it('不正な形式の引数でエラーをスローすること', () => {
+    it('不正な形式の引数でエラーをスローすること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         TraceCommand.execute('invalid-format', {
@@ -98,7 +69,7 @@ describe('TraceCommand', () => {
         expect(mockExit).toHaveBeenCalledWith(1);
     });
 
-    it('呼び出し位置情報が出力に含まれること', () => {
+    it('呼び出し位置情報が出力に含まれること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         TraceCommand.execute('main --to=UserService.updateUser', {
@@ -117,7 +88,7 @@ describe('TraceCommand', () => {
         expect(consoleOutput.some(output => output.includes('UserService.updateUser ('))).toBeTruthy();
     });
 
-    it('複数の呼び出し経路が存在する場合はすべて表示されること', () => {
+    it('複数の呼び出し経路が存在する場合はすべて表示されること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         // UserService.updateUserからDatabaseService.saveDataへの経路は複数存在する可能性がある

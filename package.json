@@ -1,6 +1,6 @@
 {
   "name": "symref",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
   "type": "module",
   "main": "dist/index.js",

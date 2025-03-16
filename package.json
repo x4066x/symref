@@ -2,14 +2,25 @@
   "name": "symref",
   "version": "0.8.2",
   "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
+  "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "symref": "dist/cli.js"
   },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "refs": "ts-node --project tsconfig.json cli.ts refs",
     "dead": "ts-node --project tsconfig.json cli.ts dead",
+    "trace": "ts-node --project tsconfig.json cli.ts trace",
+    "callers": "ts-node --project tsconfig.json cli.ts callers",
     "build": "tsc",
     "postbuild": "chmod +x ./dist/cli.js",
     "prepare": "npm run build",
@@ -23,7 +34,7 @@
     "windsurf",
     "cline"
   ],
-  "author": "",
+  "author": "x4066x",
   "license": "MIT",
   "repository": {
     "type": "git",

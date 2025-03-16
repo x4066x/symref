@@ -1,6 +1,6 @@
-import { NotificationService } from './NotificationService';
-import { UserService } from './UserService';
-import { IUser } from './types';
+import { NotificationService } from './NotificationService.js';
+import { UserService } from './UserService.js';
+import { IUser } from './types.js';
 
 function main() {
   // サービスの初期化

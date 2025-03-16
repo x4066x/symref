@@ -1,5 +1,9 @@
-import { SymbolReferenceAnalyzer } from '../../../src/analyzer/SymbolReferenceAnalyzer';
-import * as path from 'path';
+import { SymbolReferenceAnalyzer } from '../../../src/analyzer/SymbolReferenceAnalyzer.js';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('SymbolReferenceAnalyzer', () => {
     const fixturesPath = path.join(__dirname, '../../fixtures');

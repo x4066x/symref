@@ -1,4 +1,4 @@
-import { UnusedService } from './UnusedService';
+import { UnusedService } from './UnusedService.js';
 
 // Reference to usedMethod
 const service = new UnusedService();

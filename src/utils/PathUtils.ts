@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 
 /**
  * パス操作に関するユーティリティクラス

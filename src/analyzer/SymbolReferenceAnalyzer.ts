@@ -1,10 +1,10 @@
 import { Node, SyntaxKind } from 'ts-morph';
-import * as path from 'path';
-import { AnalyzerOptions, SymbolAnalysisOptions, ReferenceResult, SymbolInfo, CallGraphResult } from '../types';
-import { ProjectManager } from './ProjectManager';
-import { SymbolFinder } from './SymbolFinder';
-import { NodeUtils } from '../utils/NodeUtils';
-import { CallGraphAnalyzer } from './CallGraphAnalyzer';
+import * as path from 'node:path';
+import { AnalyzerOptions, SymbolAnalysisOptions, ReferenceResult, SymbolInfo, CallGraphResult } from '../types/index.js';
+import { ProjectManager } from './ProjectManager.js';
+import { SymbolFinder } from './SymbolFinder.js';
+import { NodeUtils } from '../utils/NodeUtils.js';
+import { CallGraphAnalyzer } from './CallGraphAnalyzer.js';
 
 /**
  * TypeScriptコードのシンボル参照を分析するクラス

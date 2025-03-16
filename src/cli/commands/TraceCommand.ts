@@ -1,7 +1,10 @@
-import { SymbolReferenceAnalyzer } from '../../analyzer/SymbolReferenceAnalyzer';
-import { AnalyzerOptions, CallGraphResult } from '../../types';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { SymbolReferenceAnalyzer } from '../../analyzer/SymbolReferenceAnalyzer.js';
+import { AnalyzerOptions, CallGraphResult } from '../../types/index.js';
+import { OutputFormatter } from '../formatters/OutputFormatter.js';
+import { CommonOptions } from '../types.js';
+import { AnalyzerOptions as AnalyzerOptionsIndex } from '../../types/index.js';
 
 /**
  * シンボル間の呼び出し経路を分析するコマンド
@@ -9,22 +12,15 @@ import * as path from 'path';
 export class TraceCommand {
     /**
      * コマンドを実行する
+     * @param args 開始シンボルと終了シンボル
      * @param options コマンドオプション
      */
-    public static execute(fromTo: string, options: any): void {
+    public static execute(args: { from: string; to: string }, options: any): void {
         try {
-            // fromとtoのシンボルを解析
-            const parts = fromTo.split('--to=');
-            if (parts.length !== 2) {
-                console.error('エラー: 引数の形式が正しくありません。例: "main --to=MyClass.method"');
-                process.exit(1);
-            }
-
-            const fromSymbol = parts[0].trim();
-            const toSymbol = parts[1].trim();
+            const { from: fromSymbol, to: toSymbol } = args;
 
             // 分析オプションを設定
-            const analyzerOptions: AnalyzerOptions = {
+            const analyzerOptions: AnalyzerOptionsIndex = {
                 basePath: options.dir,
                 tsConfigPath: options.project,
                 includePatterns: options.include ? options.include.split(',') : undefined,
@@ -141,5 +137,40 @@ export class TraceCommand {
         } catch (error: any) {
             console.error(`Mermaidファイルの生成中にエラーが発生しました: ${error.message}`);
         }
+    }
+
+    private formatCallGraph(result: CallGraphResult): string {
+        if (result.paths.length === 0) {
+            return '呼び出し経路は見つかりませんでした。';
+        }
+
+        const lines: string[] = [];
+        lines.push(`${result.paths.length} 個の呼び出し経路が見つかりました:\n`);
+
+        result.paths.forEach((path, index) => {
+            lines.push(`経路 ${index + 1}:`);
+            path.nodes.forEach((node, i) => {
+                const location = node.location;
+                const locationStr = location.filePath && location.line > 0 
+                    ? `${location.filePath}:${location.line}` 
+                    : '不明な位置';
+
+                if (i === 0) {
+                    lines.push(`${node.symbol} (${locationStr})`);
+                } else {
+                    const edge = path.edges[i - 1];
+                    const edgeLocation = edge?.location;
+                    const callLocationStr = edgeLocation?.filePath && edgeLocation?.line > 0
+                        ? `${edgeLocation.filePath}:${edgeLocation.line}` 
+                        : locationStr;
+                    
+                    lines.push(`  ↓ calls (${callLocationStr})`);
+                    lines.push(`${node.symbol} (${locationStr})`);
+                }
+            });
+            lines.push('\n');
+        });
+
+        return lines.join('\n');
     }
 }

@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { ReferenceResult, SymbolInfo } from '../../types';
+import { ReferenceResult, SymbolInfo, SymbolLocation } from '../../types/index.js';
 
 /**
  * CLI出力のフォーマッタークラス
@@ -19,7 +19,7 @@ export class OutputFormatter {
 
         if (result.references.length > 0) {
             console.log(chalk.green(`✓ ${result.type} '${result.symbol}' への参照が ${result.references.length} 件見つかりました:`))
-            result.references.forEach(ref => {
+            result.references.forEach((ref: SymbolLocation) => {
                 const isSameFile = ref.filePath === result.definition.filePath;
                 console.log(`\nファイル: ${ref.filePath}${isSameFile ? ' (定義と同じファイル)' : ''}`);
                 console.log(`  行: ${ref.line}, 列: ${ref.column}`);

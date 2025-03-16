@@ -1,8 +1,9 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import * as fs from 'fs';
-import { SymbolReferenceAnalyzer } from '../../analyzer';
-import { OutputFormatter } from '../formatters/OutputFormatter';
-import { CommonOptions } from '../types';
+import { SymbolReferenceAnalyzer } from '../../analyzer/SymbolReferenceAnalyzer.js';
+import { OutputFormatter } from '../formatters/OutputFormatter.js';
+import { CommonOptions } from '../types.js';
+import { AnalyzerOptions } from '../../types/index.js';
 
 /**
  * 未使用シンボル検出のコマンドクラス

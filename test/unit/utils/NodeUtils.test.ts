@@ -1,7 +1,11 @@
-import { NodeUtils } from '../../../src/utils/NodeUtils';
-import * as path from 'path';
-import { ProjectManager } from '../../../src/analyzer/ProjectManager';
-import { SymbolFinder } from '../../../src/analyzer/SymbolFinder';
+import { NodeUtils } from '../../../src/utils/NodeUtils.js';
+import { ProjectManager } from '../../../src/analyzer/ProjectManager.js';
+import { SymbolFinder } from '../../../src/analyzer/SymbolFinder.js';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('NodeUtils', () => {
     const fixturesPath = path.join(__dirname, '../../fixtures');

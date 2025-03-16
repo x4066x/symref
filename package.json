@@ -2,7 +2,7 @@
   "name": "symref",
   "version": "0.8.2",
   "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -17,14 +17,14 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "refs": "ts-node --project tsconfig.json cli.ts refs",
-    "dead": "ts-node --project tsconfig.json cli.ts dead",
-    "trace": "ts-node --project tsconfig.json cli.ts trace",
-    "callers": "ts-node --project tsconfig.json cli.ts callers",
+    "refs": "node --loader ts-node/esm cli.ts refs",
+    "dead": "node --loader ts-node/esm cli.ts dead",
+    "trace": "node --loader ts-node/esm cli.ts trace",
+    "callers": "node --loader ts-node/esm cli.ts callers",
     "build": "tsc",
     "postbuild": "chmod +x ./dist/cli.js",
     "prepare": "npm run build",
-    "test": "jest --verbose"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose"
   },
   "keywords": [
     "static-analysis",

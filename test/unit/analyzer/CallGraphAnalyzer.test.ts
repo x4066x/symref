@@ -1,7 +1,11 @@
 import { Project, ScriptTarget, ModuleKind } from 'ts-morph';
-import * as path from 'path';
-import * as fs from 'fs';
-import { CallGraphAnalyzer } from '../../../src/analyzer/CallGraphAnalyzer';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { CallGraphAnalyzer } from '../../../src/analyzer/CallGraphAnalyzer.js';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('CallGraphAnalyzer', () => {
     let project: Project;

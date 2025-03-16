@@ -1,8 +1,9 @@
-import { Project, ScriptTarget, ModuleKind, ModuleResolutionKind } from 'ts-morph';
-import * as path from 'path';
-import * as fs from 'fs';
+import { Project, ScriptTarget, ModuleKind, ModuleResolutionKind, SourceFile } from 'ts-morph';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 import * as glob from 'glob';
-import { AnalyzerOptions } from '../types';
+import * as ts from 'typescript';
+import { AnalyzerOptions } from '../types/index.js';
 
 /**
  * TypeScriptプロジェクトの初期化と管理を行うクラス
@@ -56,19 +57,21 @@ export class ProjectManager {
             });
         }
 
-        // パターンに一致するファイルを追加
-        const files = glob.sync(includePatterns.length > 1 ? `{${includePatterns.join(',')}}` : includePatterns[0], {
-            cwd: this.basePath,
-            ignore: excludePatterns,
-            absolute: true,
-        });
+        // includePatternが空でない場合のみファイルを追加
+        if (includePatterns.length > 0) {
+            const files = glob.sync(includePatterns.length > 1 ? `{${includePatterns.join(',')}}` : includePatterns[0], {
+                cwd: this.basePath,
+                ignore: excludePatterns,
+                absolute: true,
+            });
 
-        // 各ファイルをプロジェクトに追加
-        files.forEach(file => {
-            if (!project.getSourceFile(file)) {
-                project.addSourceFileAtPath(file);
-            }
-        });
+            // 各ファイルをプロジェクトに追加
+            files.forEach(file => {
+                if (!project.getSourceFile(file)) {
+                    project.addSourceFileAtPath(file);
+                }
+            });
+        }
 
         return project;
     }
@@ -128,5 +131,12 @@ export class ProjectManager {
         }
 
         return false;
+    }
+
+    /**
+     * プロジェクト内のすべてのソースファイルを取得
+     */
+    public getSourceFiles(): SourceFile[] {
+        return this.project.getSourceFiles();
     }
 } 

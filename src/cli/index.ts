@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { RefsCommand, DeadCommand, TraceCommand, CallersCommand } from './commands';
+import { RefsCommand } from './commands/RefsCommand.js';
+import { DeadCommand } from './commands/DeadCommand.js';
+import { TraceCommand } from './commands/TraceCommand.js';
+import { CallersCommand } from './commands/CallersCommand.js';
 
 /**
  * CLIエントリーポイント
@@ -48,14 +51,14 @@ export function runCli() {
         });
 
     program
-        .command('trace <args>')
-        .description('シンボル間の呼び出し経路を分析します')
+        .command('trace <from> <to>')
+        .description('開始シンボルから終了シンボルまでの呼び出し経路を分析します')
         .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
         .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
         .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
         .option('--mermaid <file>', 'Mermaid形式のグラフファイルを出力')
-        .action((args, options) => {
-            TraceCommand.execute(args, {
+        .action((from, to, options) => {
+            TraceCommand.execute({ from, to }, {
                 dir: options.dir,
                 include: options.include,
                 exclude: options.exclude,
@@ -85,6 +88,6 @@ export function runCli() {
 }
 
 // CLIとして実行された場合
-if (require.main === module) {
+if (import.meta.url === new URL(process.argv[1], 'file:').href) {
     runCli();
 } 

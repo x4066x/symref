@@ -1,3 +1,3 @@
-export { SymbolReferenceAnalyzer } from './SymbolReferenceAnalyzer';
-export { ProjectManager } from './ProjectManager';
-export { SymbolFinder } from './SymbolFinder'; 
+export { SymbolReferenceAnalyzer } from './SymbolReferenceAnalyzer.js';
+export { ProjectManager } from './ProjectManager.js';
+export { SymbolFinder } from './SymbolFinder.js'; 

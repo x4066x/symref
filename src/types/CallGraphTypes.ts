@@ -1,4 +1,4 @@
-import { SymbolLocation } from './SymbolTypes';
+import { SymbolLocation } from './SymbolTypes.js';
 
 /**
  * 呼び出しグラフのノード

@@ -1,4 +1,4 @@
-import { IUser, IUserService, INotificationService, NotificationType } from './types';
+import { IUser, IUserService, INotificationService, NotificationType } from './types.js';
 
 export class UserService implements IUserService {
   private users: Map<string, IUser> = new Map();

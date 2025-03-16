@@ -1,6 +1,11 @@
-import { CallersCommand } from '../../../../src/cli/commands/CallersCommand';
-import * as path from 'path';
-import * as fs from 'fs';
+import { CallersCommand } from '../../../../src/cli/commands/CallersCommand.js';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { jest } from '@jest/globals';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // コンソール出力をモック化
 const originalConsoleLog = console.log;

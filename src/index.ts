@@ -1,9 +1,12 @@
-export { SymbolReferenceAnalyzer } from './analyzer/SymbolReferenceAnalyzer';
-export * from './types';
+import { SymbolReferenceAnalyzer } from './analyzer/SymbolReferenceAnalyzer.js';
+import { AnalyzerOptions } from './types/index.js';
+import { SymbolLocation } from './types/SymbolTypes.js';
+
+export { SymbolReferenceAnalyzer } from './analyzer/SymbolReferenceAnalyzer.js';
+export * from './types/index.js';
 
 // 後方互換性のために古いクラス名でもエクスポート
-import { SymbolReferenceAnalyzer } from './analyzer/SymbolReferenceAnalyzer';
-import { AnalyzerOptions } from './types';
+export { SymbolReferenceAnalyzer as SymbolAnalyzer } from './analyzer/SymbolReferenceAnalyzer.js';
 
 /**
  * @deprecated このクラスは非推奨です。代わりに SymbolReferenceAnalyzer を使用してください。

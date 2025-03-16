@@ -1,8 +1,8 @@
 import { Project, Node, SyntaxKind } from 'ts-morph';
-import * as path from 'path';
-import * as fs from 'fs';
-import { CallGraphNode, CallEdge, CallPath, CallGraphResult, SymbolLocation } from '../types';
-import { NodeUtils } from '../utils/NodeUtils';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { CallGraphNode, CallEdge, CallPath, CallGraphResult, SymbolLocation } from '../types/index.js';
+import { NodeUtils } from '../utils/NodeUtils.js';
 
 /**
  * 呼び出しグラフの構築と分析を担当するクラス

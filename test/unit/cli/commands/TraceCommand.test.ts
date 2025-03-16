@@ -1,6 +1,11 @@
-import { TraceCommand } from '../../../../src/cli/commands/TraceCommand';
-import * as path from 'path';
-import * as fs from 'fs';
+import { TraceCommand } from '../../../../src/cli/commands/TraceCommand.js';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { jest } from '@jest/globals';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // コンソール出力をモック化
 const originalConsoleLog = console.log;
@@ -39,7 +44,7 @@ describe('TraceCommand', () => {
     it('正しい形式の引数で呼び出し経路を分析できること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
-        TraceCommand.execute('main --to=UserService.updateUser', {
+        TraceCommand.execute({ from: 'main', to: 'UserService.updateUser' }, {
             dir: fixturesPath,
             include: '**/*.ts',
             exclude: ''
@@ -55,10 +60,10 @@ describe('TraceCommand', () => {
         expect(mockExit).not.toHaveBeenCalled();
     });
     
-    it('不正な形式の引数でエラーをスローすること', async () => {
+    it('不正な引数でエラーをスローすること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
-        TraceCommand.execute('invalid-format', {
+        TraceCommand.execute({ from: '', to: '' }, {
             dir: fixturesPath,
             include: '**/*.ts',
             exclude: ''
@@ -72,7 +77,7 @@ describe('TraceCommand', () => {
     it('呼び出し位置情報が出力に含まれること', async () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
-        TraceCommand.execute('main --to=UserService.updateUser', {
+        TraceCommand.execute({ from: 'main', to: 'UserService.updateUser' }, {
             dir: fixturesPath,
             include: '**/*.ts',
             exclude: ''
@@ -92,7 +97,7 @@ describe('TraceCommand', () => {
         const fixturesPath = path.resolve(__dirname, '../../../fixtures');
         
         // UserService.updateUserからDatabaseService.saveDataへの経路は複数存在する可能性がある
-        TraceCommand.execute('UserService.updateUser --to=DatabaseService.saveData', {
+        TraceCommand.execute({ from: 'UserService.updateUser', to: 'DatabaseService.saveData' }, {
             dir: fixturesPath,
             include: '**/*.ts',
             exclude: ''

@@ -16,18 +16,18 @@
 ## 2. 移行ステップ
 
 ### 2.1 準備フェーズ
-1. package.jsonの更新
+1. ✅ package.jsonの更新
    ```json
    {
      "type": "module"
    }
    ```
-2. TypeScript設定の更新
+2. ✅ TypeScript設定の更新
    ```json
    {
      "compilerOptions": {
-       "module": "ESNext",
-       "moduleResolution": "Node16" // または "NodeNext"
+       "module": "NodeNext",
+       "moduleResolution": "NodeNext"
      }
    }
    ```
@@ -35,105 +35,107 @@
 ### 2.2 コード変更フェーズ
 
 #### 2.2.1 ファイル拡張子の変更
-- `.ts` → `.mts`
-- `.js` → `.mjs`
-- または拡張子はそのままで、importに拡張子を明示的に付与
+- `.ts` → `.mts` (✗ 不要と判断)
+- `.js` → `.mjs` (✗ 不要と判断)
+- ✅ インポートパスに拡張子を明示的に付与
 
 #### 2.2.2 モジュール構文の変更
-1. require/exportsの変更
-   ```typescript
-   // 変更前（CommonJS）
-   const { SymbolFinder } = require('./SymbolFinder');
-   module.exports = { AnalyzerOptions };
+1. ✅ 基本的なエクスポート/インポートの修正
+   - src/index.ts
+   - src/types/index.ts
 
-   // 変更後（ESModules）
-   import { SymbolFinder } from './SymbolFinder.js';
-   export { AnalyzerOptions };
-   ```
+2. ✅ 残りのファイルの修正
+   - ✅ src/analyzer/
+   - ✅ src/cli/
+   - ✅ src/utils/
+   - 🔄 test/
 
-2. デフォルトエクスポート/インポートの変更
-   ```typescript
-   // 変更前（CommonJS）
-   module.exports = SymbolFinder;
+### 2.3 移行優先順位と進捗
 
-   // 変更後（ESModules）
-   export default SymbolFinder;
-   ```
+1. コアモジュール
+   - ✅ src/index.ts
+   - ✅ src/types/index.ts
+   - ✅ src/analyzer/
+   - ✅ src/cli/
+   - ✅ src/utils/
 
-### 2.3 移行優先順位
+2. テストファイル
+   - ✅ test/unit/analyzer/ProjectManager.test.ts
+   - ✅ test/unit/analyzer/CallGraphAnalyzer.test.ts
+   - ✅ test/unit/analyzer/SymbolReferenceAnalyzer.test.ts
+   - ✅ test/unit/analyzer/SymbolFinder.test.ts
+   - ✅ test/unit/cli/commands/CallersCommand.test.ts
+   - ✅ test/unit/cli/commands/TraceCommand.test.ts
+   - ✅ test/unit/utils/TypeUtils.test.ts
+   - ✅ test/unit/utils/NodeUtils.test.ts
+   - ✅ test/cli.test.ts
 
-1. 依存関係の少ないユーティリティモジュール
-   - `src/types/`
-   - `src/utils/`
+### 2.4 現在の課題
+1. ✅ インポートパスの修正
+   - ✅ `.js`拡張子の追加
+   - ✅ 相対パスの修正
 
-2. コアモジュール
-   - `src/analyzer/`
-   - `src/core/`
+2. ✅ テストファイルの修正
+   - ✅ `__dirname`の代替実装
+   - ✅ Jestの設定更新
+   - ✅ テストケースの修正
 
-3. エントリーポイントとCLIモジュール
-   - `src/cli/`
-   - `src/index.ts`
+3. 型の問題
+   - ✅ 一部のパラメータに型アノテーションが必要
+   - ✅ インターフェースの整合性確認
 
 ## 3. 互換性の考慮
 
-### 3.1 デュアルパッケージサポート（必要な場合）
-```json
-{
-  "exports": {
-    "import": "./dist/esm/index.js",
-    "require": "./dist/cjs/index.js"
-  }
-}
-```
+### 3.1 デュアルパッケージサポート
+- ⏳ 必要性の評価中
 
 ### 3.2 注意点
-- `__dirname`、`__filename`の代替手段の実装
-- ダイナミックインポートの適切な使用
-- パスエイリアスの設定更新
+- ✅ `__dirname`、`__filename`の代替実装
+- ⏳ ダイナミックインポートの確認
+- ⏳ パスエイリアスの確認
 
 ## 4. テスト戦略
 
 ### 4.1 テストフェーズ
-1. ユニットテストの更新
-2. 統合テストの実行
-3. E2Eテストの実施
+1. ✅ ユニットテストの更新
+2. ⏳ 統合テストの実行
+3. ⏳ E2Eテストの実施
 
 ### 4.2 検証項目
-- モジュールの正常な読み込み
-- 循環依存の検出
-- パフォーマンスへの影響
-- バンドルサイズの変化
+- ⏳ モジュールの正常な読み込み
+- ⏳ 循環依存の検出
+- ⏳ パフォーマンスへの影響
+- ⏳ バンドルサイズの変化
 
-## 5. ロールバックプラン
+## 5. 次のステップ
+1. ✅ src/analyzer/ディレクトリのファイルの修正
+2. ✅ src/cli/ディレクトリのファイルの修正
+3. ✅ src/utils/ディレクトリのファイルの修正
+4. ✅ テストファイルの修正
+5. ⏳ 全体的なテストの実行と検証
 
-### 5.1 ロールバックトリガー
-- 重大な互換性問題の発見
-- パフォーマンスの著しい低下
-- 未解決の依存関係の問題
+## 6. 進捗状況
+- 開始日: 2024-03-16
+- 現在の段階: テスト検証フェーズ
+- 完了予定: 2024-03-23
 
-### 5.2 ロールバック手順
-1. package.jsonの設定を元に戻す
-2. TypeScript設定の復元
-3. コードベースの復元（Gitでの管理を前提）
+### 6.1 完了したタスク
+- ✅ package.jsonの更新
+- ✅ tsconfig.jsonの更新
+- ✅ jest.config.jsの更新
+- ✅ 基本的なエクスポート/インポートの修正
+- ✅ src/cli/ディレクトリの修正
+- ✅ src/analyzer/ディレクトリの修正
+- ✅ src/utils/ディレクトリの修正
+- ✅ すべてのユニットテストファイルの更新
+- ✅ test/cli.test.tsの更新と動作確認
 
-## 6. タイムライン
+### 6.2 進行中のタスク
+- 🔄 統合テストの実行
+- 🔄 E2Eテストの実施
+- 🔄 パフォーマンス検証
 
-### 6.1 フェーズ1（準備）: 1週間
-- 依存関係の調査
-- 設定ファイルの更新
-- 移行計画の詳細化
-
-### 6.2 フェーズ2（実装）: 2-3週間
-- モジュール変換の実施
-- テストの更新
-- ドキュメントの更新
-
-### 6.3 フェーズ3（検証）: 1週間
-- テスト実行
-- パフォーマンス検証
-- 本番環境での検証
-
-### 6.4 フェーズ4（リリース）: 1週間
-- 段階的なデプロイ
-- モニタリング
-- フィードバック収集 
+### 6.3 未着手のタスク
+- ⏳ デュアルパッケージサポートの評価
+- ⏳ ダイナミックインポートの確認
+- ⏳ パスエイリアスの確認 

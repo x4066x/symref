@@ -1,4 +1,4 @@
-import { INotification, INotificationService, IUserService } from './types';
+import { INotification, INotificationService, IUserService } from './types.js';
 
 export class NotificationService implements INotificationService {
   private notifications: INotification[] = [];

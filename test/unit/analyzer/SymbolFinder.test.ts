@@ -1,6 +1,10 @@
-import { SymbolFinder } from '../../../src/analyzer/SymbolFinder';
-import { ProjectManager } from '../../../src/analyzer/ProjectManager';
-import * as path from 'path';
+import { SymbolFinder } from '../../../src/analyzer/SymbolFinder.js';
+import { ProjectManager } from '../../../src/analyzer/ProjectManager.js';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('SymbolFinder', () => {
     const fixturesPath = path.join(__dirname, '../../fixtures');

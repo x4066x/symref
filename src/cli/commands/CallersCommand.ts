@@ -1,7 +1,9 @@
-import { SymbolReferenceAnalyzer } from '../../analyzer/SymbolReferenceAnalyzer';
-import { AnalyzerOptions, CallGraphResult } from '../../types';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { SymbolReferenceAnalyzer } from '../../analyzer/SymbolReferenceAnalyzer.js';
+import { AnalyzerOptions, CallGraphResult, CallPath } from '../../types/index.js';
+import { OutputFormatter } from '../formatters/OutputFormatter.js';
+import { CommonOptions } from '../types.js';
 
 /**
  * シンボルの呼び出し元を分析するコマンド
@@ -131,5 +133,40 @@ export class CallersCommand {
         } catch (error: any) {
             console.error(`Mermaidファイルの生成中にエラーが発生しました: ${error.message}`);
         }
+    }
+
+    private formatCallGraph(result: CallGraphResult): string {
+        if (result.paths.length === 0) {
+            return '呼び出し元は見つかりませんでした。';
+        }
+
+        const lines: string[] = [];
+        lines.push(`${result.paths.length} 個の呼び出し経路が見つかりました:\n`);
+
+        result.paths.forEach((path, index) => {
+            lines.push(`経路 ${index + 1}:`);
+            path.nodes.forEach((node, i) => {
+                const location = node.location;
+                const locationStr = location.filePath && location.line > 0 
+                    ? `${location.filePath}:${location.line}` 
+                    : '不明な位置';
+
+                if (i === 0) {
+                    lines.push(`${node.symbol} (${locationStr})`);
+                } else {
+                    const edge = path.edges[i - 1];
+                    const edgeLocation = edge?.location;
+                    const callLocationStr = edgeLocation?.filePath && edgeLocation?.line > 0
+                        ? `${edgeLocation.filePath}:${edgeLocation.line}` 
+                        : locationStr;
+                    
+                    lines.push(`  ↓ calls (${callLocationStr})`);
+                    lines.push(`${node.symbol} (${locationStr})`);
+                }
+            });
+            lines.push('\n');
+        });
+
+        return lines.join('\n');
     }
 }

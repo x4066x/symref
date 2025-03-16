@@ -1,5 +1,6 @@
 import { Node, SyntaxKind } from 'ts-morph';
-import { SymbolType } from '../types';
+import * as ts from 'typescript';
+import { SymbolType } from '../types/index.js';
 
 /**
  * ノード操作に関するユーティリティクラス

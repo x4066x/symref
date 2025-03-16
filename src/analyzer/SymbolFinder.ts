@@ -1,7 +1,7 @@
 import { Project, Node, SyntaxKind } from 'ts-morph';
-import * as path from 'path';
-import { NodeUtils } from '../utils';
-import { SymbolLocation } from '../types';
+import * as path from 'node:path';
+import { NodeUtils } from '../utils/NodeUtils.js';
+import { SymbolLocation } from '../types/index.js';
 
 /**
  * シンボルの定義と参照を検索するクラス

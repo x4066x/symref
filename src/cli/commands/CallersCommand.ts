@@ -14,7 +14,11 @@ export class CallersCommand {
      * @param input 入力文字列
      * @returns パースされたシンボルの配列
      */
-    private static parseSymbols(input: string): string[] {
+    private static parseSymbols(input: string): { 
+        symbol: string; 
+        containerName?: string; 
+        memberName?: string; 
+    }[] {
         // カンマとスペースの両方で分割し、空の要素を除外
         // まずカンマで分割し、その後スペースで分割する
         const symbols = [];
@@ -28,7 +32,24 @@ export class CallersCommand {
                 const spaceSeparated = part.trim().split(/\s+/);
                 for (const symbol of spaceSeparated) {
                     if (symbol.trim()) {
-                        symbols.push(symbol.trim());
+                        const trimmedSymbol = symbol.trim();
+                        // ドット記法の解析
+                        if (trimmedSymbol.includes('.')) {
+                            // 複数のドットに対応するため、最後のドットで分割
+                            const lastDotIndex = trimmedSymbol.lastIndexOf('.');
+                            const containerName = trimmedSymbol.substring(0, lastDotIndex);
+                            const memberName = trimmedSymbol.substring(lastDotIndex + 1);
+                            
+                            symbols.push({
+                                symbol: trimmedSymbol,
+                                containerName,
+                                memberName
+                            });
+                        } else {
+                            symbols.push({
+                                symbol: trimmedSymbol
+                            });
+                        }
                     }
                 }
             }
@@ -72,39 +93,60 @@ export class CallersCommand {
             // 全てのシンボルを分析
             for (const symbol of symbols) {
                 try {
+                    const symbolName = symbol.symbol;
+                    
                     // シンボルの存在確認
-                    if (!analyzer.hasSymbol(symbol)) {
-                        hasError = true;
-                        errorSymbols.push({ 
-                            symbol, 
-                            error: `シンボル '${symbol}' がコードベース内に見つかりません。` 
-                        });
-                        continue;
+                    if (symbol.containerName && symbol.memberName) {
+                        // コンテナが存在するか確認
+                        if (!analyzer.hasSymbol(symbol.containerName)) {
+                            hasError = true;
+                            errorSymbols.push({ 
+                                symbol: symbolName, 
+                                error: `コンテナ '${symbol.containerName}' がコードベース内に見つかりません。` 
+                            });
+                            continue;
+                        }
+                    } else {
+                        // 単一シンボルの存在確認
+                        if (!analyzer.hasSymbol(symbolName)) {
+                            hasError = true;
+                            errorSymbols.push({ 
+                                symbol: symbolName, 
+                                error: `シンボル '${symbolName}' がコードベース内に見つかりません。` 
+                            });
+                            continue;
+                        }
                     }
-
-                    console.log(`\n=== '${symbol}' の呼び出し元を分析中... ===\n`);
+                    
+                    console.log(`\n=== '${symbolName}' の呼び出し元を分析中... ===\n`);
 
                     // 呼び出し元を分析
-                    const result = analyzer.findCallers(symbol);
+                    const result = analyzer.findCallers(symbolName);
 
                     // 結果を表示
-                    CallersCommand.displayResult(result, symbol);
+                    CallersCommand.displayResult(result, symbolName);
 
                     // Mermaidファイルを生成（オプション）
                     if (options.mermaid) {
-                        CallersCommand.generateMermaidFile(result, `${symbol}_${options.mermaid}`);
+                        CallersCommand.generateMermaidFile(result, `${symbolName}_${options.mermaid}`);
                     }
                 } catch (error: any) {
                     hasError = true;
-                    errorSymbols.push({ symbol, error: error.message });
+                    errorSymbols.push({ symbol: symbol.symbol, error: error.message });
                 }
             }
 
             // エラーが発生したシンボルを表示
             if (errorSymbols.length > 0) {
+                console.log('\nエラーが発生したシンボル:');
                 errorSymbols.forEach(({ symbol, error }) => {
-                    process.stderr.write(`エラー: ${error}\n`);
+                    console.error(`  - ${symbol}: ${error}`);
                 });
+            }
+
+            // エラーが発生した場合は終了コードを1に設定
+            if (hasError) {
+                process.exit(1);
             }
         } catch (error: any) {
             console.error(`エラー: ${error.message}`);

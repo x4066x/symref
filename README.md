@@ -383,3 +383,47 @@ symrefは、Mermaid形式でグラフを出力します。以下の方法で可�
 3. **VSCode拡張機能**
    - Mermaid Preview拡張機能をインストール
    - エディタ上で直接プレビュー可能
+
+### 使用例：
+
+#### シンボル参照の検索
+
+特定のシンボルの参照を全て検索します：
+
+```bash
+symref refs myFunction
+```
+
+複数のシンボルを一度に検索：
+
+```bash
+symref refs myFunction myClass myVariable
+```
+
+#### クラス.メソッド検索の例
+
+クラスのメソッドや特定のプロパティを検索する場合は、ドット記法を使用できます：
+
+```bash
+# クラスのメソッド参照を検索
+symref refs MyClass.myMethod
+
+# 複数のクラスメソッド参照を検索
+symref refs MyClass.method1 OtherClass.method2
+
+# クラスのメソッド呼び出し元を検索
+symref callers MyClass.myMethod
+
+# クラスメソッド間の呼び出し経路を分析
+symref trace FirstClass.method1 SecondClass.method2
+```
+
+ネストしたプロパティアクセス（例：`ClassName.prototype.methodName`）も同様に検索できます。
+
+#### 呼び出し元の分析
+
+特定のシンボルの呼び出し元をすべて分析します：
+
+```bash
+symref callers myFunction
+```

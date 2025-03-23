@@ -11,6 +11,37 @@ import { AnalyzerOptions as AnalyzerOptionsIndex } from '../../types/index.js';
  */
 export class TraceCommand {
     /**
+     * シンボル文字列をパースする
+     * @param input 入力文字列
+     * @returns パースされたシンボル情報
+     */
+    private static parseSymbol(input: string): { 
+        symbol: string; 
+        containerName?: string; 
+        memberName?: string; 
+    } {
+        const trimmedSymbol = input.trim();
+        
+        // ドット記法の解析
+        if (trimmedSymbol.includes('.')) {
+            // 複数のドットに対応するため、最後のドットで分割
+            const lastDotIndex = trimmedSymbol.lastIndexOf('.');
+            const containerName = trimmedSymbol.substring(0, lastDotIndex);
+            const memberName = trimmedSymbol.substring(lastDotIndex + 1);
+            
+            return {
+                symbol: trimmedSymbol,
+                containerName,
+                memberName
+            };
+        } else {
+            return {
+                symbol: trimmedSymbol
+            };
+        }
+    }
+    
+    /**
      * コマンドを実行する
      * @param args 開始シンボルと終了シンボル
      * @param options コマンドオプション
@@ -23,9 +54,12 @@ export class TraceCommand {
                 process.exit(1);
             }
 
-            // シンボル名の前後の空白を除去
-            const fromSymbol = args.from.trim();
-            const toSymbol = args.to.trim();
+            // シンボル名をパース
+            const fromSymbolInfo = this.parseSymbol(args.from);
+            const toSymbolInfo = this.parseSymbol(args.to);
+            
+            const fromSymbol = fromSymbolInfo.symbol;
+            const toSymbol = toSymbolInfo.symbol;
 
             // 分析オプションを設定
             const analyzerOptions: AnalyzerOptionsIndex = {
@@ -38,13 +72,24 @@ export class TraceCommand {
             // アナライザーを初期化
             const analyzer = new SymbolReferenceAnalyzer(analyzerOptions);
 
-            // シンボルの存在確認
-            if (!analyzer.hasSymbol(fromSymbol)) {
+            // 開始シンボルの存在確認
+            if (fromSymbolInfo.containerName && fromSymbolInfo.memberName) {
+                if (!analyzer.hasSymbol(fromSymbolInfo.containerName)) {
+                    process.stderr.write(`エラー: コンテナ '${fromSymbolInfo.containerName}' がコードベース内に見つかりません。\n`);
+                    process.exit(1);
+                }
+            } else if (!analyzer.hasSymbol(fromSymbol)) {
                 process.stderr.write(`エラー: シンボル '${fromSymbol}' がコードベース内に見つかりません。\n`);
                 process.exit(1);
             }
 
-            if (!analyzer.hasSymbol(toSymbol)) {
+            // 終了シンボルの存在確認
+            if (toSymbolInfo.containerName && toSymbolInfo.memberName) {
+                if (!analyzer.hasSymbol(toSymbolInfo.containerName)) {
+                    process.stderr.write(`エラー: コンテナ '${toSymbolInfo.containerName}' がコードベース内に見つかりません。\n`);
+                    process.exit(1);
+                }
+            } else if (!analyzer.hasSymbol(toSymbol)) {
                 process.stderr.write(`エラー: シンボル '${toSymbol}' がコードベース内に見つかりません。\n`);
                 process.exit(1);
             }

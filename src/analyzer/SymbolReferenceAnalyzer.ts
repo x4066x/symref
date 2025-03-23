@@ -19,13 +19,23 @@ export class SymbolReferenceAnalyzer {
     /**
      * コンストラクタ
      * @param options 設定オプション
+     * @param dependencies 依存コンポーネント（オプション、テスト用）
      */
-    constructor(options: AnalyzerOptions) {
+    constructor(
+        options: AnalyzerOptions,
+        dependencies?: {
+            projectManager?: ProjectManager;
+            symbolFinder?: SymbolFinder;
+            nodeUtils?: NodeUtils;
+            callGraphAnalyzer?: CallGraphAnalyzer;
+        }
+    ) {
         this.basePath = path.resolve(options.basePath);
-        this.projectManager = new ProjectManager(options);
-        this.symbolFinder = new SymbolFinder(this.projectManager.getProject());
-        this.nodeUtils = new NodeUtils();
-        this.callGraphAnalyzer = new CallGraphAnalyzer(this.projectManager.getProject());
+        this.projectManager = dependencies?.projectManager || new ProjectManager(options);
+        const project = this.projectManager.getProject();
+        this.symbolFinder = dependencies?.symbolFinder || new SymbolFinder(project);
+        this.nodeUtils = dependencies?.nodeUtils || new NodeUtils();
+        this.callGraphAnalyzer = dependencies?.callGraphAnalyzer || new CallGraphAnalyzer(project);
     }
 
     /**
@@ -301,7 +311,10 @@ export class SymbolReferenceAnalyzer {
      * @param toSymbol 終了シンボル
      * @returns 呼び出し経路の分析結果
      */
-    public traceCallPath(fromSymbol: string, toSymbol: string): CallGraphResult {
+    public traceCallPath(
+        fromSymbol: string, 
+        toSymbol: string
+    ): CallGraphResult {
         return this.callGraphAnalyzer.findPathsFromTo(fromSymbol, toSymbol);
     }
 
@@ -310,7 +323,9 @@ export class SymbolReferenceAnalyzer {
      * @param symbol 対象シンボル
      * @returns 呼び出し経路の分析結果
      */
-    public findCallers(symbol: string): CallGraphResult {
+    public findCallers(
+        symbol: string
+    ): CallGraphResult {
         return this.callGraphAnalyzer.findAllCallers(symbol);
     }
 

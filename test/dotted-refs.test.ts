@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { SymbolReferenceAnalyzer } from '../src/analyzer/SymbolReferenceAnalyzer.js';
 import { AnalyzerOptions } from '../src/types/index.js';
 import { RefsCommand } from '../src/cli/commands/RefsCommand.js';
+import { CallersCommand } from '../src/cli/commands/CallersCommand.js';
 
 // ESM環境では__dirnameが使えないため、代替手段を使用
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +29,56 @@ describe('ドット記法を含むシンボル参照検索', () => {
         // RefsCommand.parseSymbolsはprivateのため、テスト用に同等のメソッドを使用
         // @ts-ignore: privateメソッドへのアクセス
         const parseSymbols = RefsCommand['parseSymbols'].bind(RefsCommand);
+        
+        // テストケース
+        const testCases = [
+            {
+                input: 'UserService',
+                expected: [{ symbol: 'UserService' }]
+            },
+            {
+                input: 'UserService.updateUserEmail',
+                expected: [{ 
+                    symbol: 'UserService.updateUserEmail',
+                    containerName: 'UserService',
+                    memberName: 'updateUserEmail'
+                }]
+            },
+            {
+                input: 'UserService, IUserService',
+                expected: [
+                    { symbol: 'UserService' },
+                    { symbol: 'IUserService' }
+                ]
+            },
+            {
+                input: 'UserService.updateUserEmail UserService.getUser',
+                expected: [
+                    { 
+                        symbol: 'UserService.updateUserEmail',
+                        containerName: 'UserService',
+                        memberName: 'updateUserEmail'
+                    },
+                    { 
+                        symbol: 'UserService.getUser',
+                        containerName: 'UserService',
+                        memberName: 'getUser'
+                    }
+                ]
+            }
+        ];
+        
+        for (const testCase of testCases) {
+            const result = parseSymbols(testCase.input);
+            expect(result).toEqual(testCase.expected);
+        }
+    });
+    
+    // 単体テストケース3: CallersCommand.parseSymbolsメソッドの拡張
+    test('CallersCommand.parseSymbols メソッドがドット記法を正しく解析できる', () => {
+        // CallersCommand.parseSymbolsはprivateのため、テスト用に同等のメソッドを使用
+        // @ts-ignore: privateメソッドへのアクセス
+        const parseSymbols = CallersCommand['parseSymbols'].bind(CallersCommand);
         
         // テストケース
         const testCases = [
@@ -138,4 +189,4 @@ describe('ドット記法を含むシンボル参照検索', () => {
             console.log(error);
         }
     });
-}); 
+});

@@ -251,4 +251,89 @@ export class SymbolFinder {
         const definitionNode = this.findDefinitionNode(symbolName);
         return definitionNode !== undefined;
     }
+
+    /**
+     * プロジェクト内のすべてのエクスポートされたシンボルを取得
+     * @param filterType 特定のシンボルタイプでフィルタリングする場合（オプション）
+     * @returns シンボル名とその位置情報のマップ
+     */
+    public getAllExportedSymbols(
+        filterType?: 'class' | 'interface' | 'function' | 'enum' | 'variable'
+    ): Map<string, SymbolLocation> {
+        const exportedSymbols = new Map<string, SymbolLocation>();
+        
+        // すべてのソースファイルを走査
+        for (const sourceFile of this.project.getSourceFiles()) {
+            // .d.tsファイルはスキップ
+            if (sourceFile.getFilePath().endsWith('.d.ts')) continue;
+            
+            // クラス宣言を処理
+            if (!filterType || filterType === 'class') {
+                for (const classDecl of sourceFile.getClasses()) {
+                    if (this.isExported(classDecl)) {
+                        const className = classDecl.getName();
+                        if (className) {
+                            const nameNode = classDecl.getNameNode();
+                            if (nameNode) {
+                                exportedSymbols.set(className, this.extractDefinitionInfo(nameNode));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // インターフェース宣言を処理
+            if (!filterType || filterType === 'interface') {
+                for (const interfaceDecl of sourceFile.getInterfaces()) {
+                    if (this.isExported(interfaceDecl)) {
+                        const interfaceName = interfaceDecl.getName();
+                        if (interfaceName) {
+                            const nameNode = interfaceDecl.getNameNode();
+                            if (nameNode) {
+                                exportedSymbols.set(interfaceName, this.extractDefinitionInfo(nameNode));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 関数宣言を処理
+            if (!filterType || filterType === 'function') {
+                for (const funcDecl of sourceFile.getFunctions()) {
+                    if (this.isExported(funcDecl)) {
+                        const funcName = funcDecl.getName();
+                        if (funcName) {
+                            const nameNode = funcDecl.getNameNode();
+                            if (nameNode) {
+                                exportedSymbols.set(funcName, this.extractDefinitionInfo(nameNode));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return exportedSymbols;
+    }
+    
+    /**
+     * 宣言がエクスポートされているかどうかを確認
+     * @param node 宣言ノード
+     * @returns エクスポートされている場合はtrue
+     */
+    private isExported(node: Node): boolean {
+        // モディファイアをチェック
+        const modifiers = (node as any).getModifiers?.();
+        if (modifiers?.some((m: Node) => m.getKind() === SyntaxKind.ExportKeyword)) {
+            return true;
+        }
+        
+        // 親がエクスポート宣言かどうかをチェック
+        const parent = node.getParent();
+        if (parent?.getKind() === SyntaxKind.ExportDeclaration) {
+            return true;
+        }
+        
+        return false;
+    }
 } 

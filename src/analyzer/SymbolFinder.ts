@@ -32,37 +32,84 @@ export class SymbolFinder {
             // .d.tsファイルはスキップ
             if (sourceFile.getFilePath().endsWith('.d.ts')) continue;
 
-            const nodes = sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)
-                .filter(node => node.getText() === symbolName);
-
-            for (const node of nodes) {
-                const parent = node.getParent();
-                if (!parent) continue;
-
-                // エクスポートされた変数宣言（Reactコンポーネントなど）をチェック
-                if (parent.isKind(SyntaxKind.VariableDeclaration)) {
-                    const varStmt = parent.getParent()?.getParent();
-                    if (varStmt && varStmt.isKind(SyntaxKind.VariableStatement)) {
-                        const modifiers = varStmt.getModifiers();
-                        if (modifiers?.some(m => m.isKind(SyntaxKind.ExportKeyword))) {
-                            definitionNode = node;
+            // クラス宣言を直接検索
+            const classDecls = sourceFile.getClasses();
+            
+            for (const classDecl of classDecls) {
+                const className = classDecl.getName();
+                
+                if (className === symbolName) {
+                    const nameNode = classDecl.getNameNode();
+                    if (nameNode) {
+                        definitionNode = nameNode;
+                        break;
+                    }
+                }
+            }
+            
+            // インターフェース宣言を直接検索
+            if (!definitionNode) {
+                const interfaceDecls = sourceFile.getInterfaces();
+                for (const interfaceDecl of interfaceDecls) {
+                    if (interfaceDecl.getName() === symbolName) {
+                        const nameNode = interfaceDecl.getNameNode();
+                        if (nameNode) {
+                            definitionNode = nameNode;
                             break;
                         }
                     }
                 }
-                // 通常の定義
-                else if (
-                    parent.isKind(SyntaxKind.ClassDeclaration) || 
-                    parent.isKind(SyntaxKind.InterfaceDeclaration) || 
-                    parent.isKind(SyntaxKind.FunctionDeclaration) ||
-                    parent.isKind(SyntaxKind.MethodDeclaration) ||
-                    parent.isKind(SyntaxKind.PropertyDeclaration) ||
-                    parent.isKind(SyntaxKind.EnumDeclaration)
-                ) {
-                    definitionNode = node;
-                    break;
+            }
+            
+            // 関数宣言を直接検索
+            if (!definitionNode) {
+                const funcDecls = sourceFile.getFunctions();
+                for (const funcDecl of funcDecls) {
+                    if (funcDecl.getName() === symbolName) {
+                        const nameNode = funcDecl.getNameNode();
+                        if (nameNode) {
+                            definitionNode = nameNode;
+                            break;
+                        }
+                    }
                 }
             }
+
+            // 通常の識別子ベースの検索（既存のコード）
+            if (!definitionNode) {
+                const nodes = sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)
+                    .filter(node => node.getText() === symbolName);
+
+                for (const node of nodes) {
+                    const parent = node.getParent();
+                    if (!parent) continue;
+
+                    // エクスポートされた変数宣言（Reactコンポーネントなど）をチェック
+                    if (parent.isKind(SyntaxKind.VariableDeclaration)) {
+                        const varStmt = parent.getParent()?.getParent();
+                        if (varStmt && varStmt.isKind(SyntaxKind.VariableStatement)) {
+                            const modifiers = varStmt.getModifiers();
+                            if (modifiers?.some(m => m.isKind(SyntaxKind.ExportKeyword))) {
+                                definitionNode = node;
+                                break;
+                            }
+                        }
+                    }
+                    // 通常の定義
+                    else if (
+                        parent.isKind(SyntaxKind.ClassDeclaration) || 
+                        parent.isKind(SyntaxKind.InterfaceDeclaration) || 
+                        parent.isKind(SyntaxKind.FunctionDeclaration) ||
+                        parent.isKind(SyntaxKind.MethodDeclaration) ||
+                        parent.isKind(SyntaxKind.PropertyDeclaration) ||
+                        parent.isKind(SyntaxKind.EnumDeclaration)
+                    ) {
+                        definitionNode = node;
+                        break;
+                    }
+                }
+            }
+            
             if (definitionNode) break;
         }
 
@@ -101,6 +148,7 @@ export class SymbolFinder {
     ): SymbolLocation[] {
         const references: SymbolLocation[] = [];
         const definitionFilePath = definitionNode.getSourceFile().getFilePath();
+        const isClassOrInterface = this.isClassOrInterfaceDefinition(definitionNode);
 
         // すべてのソースファイルを検索
         for (const sourceFile of this.project.getSourceFiles()) {
@@ -113,6 +161,30 @@ export class SymbolFinder {
 
             // .d.tsファイルはスキップ
             if (currentFilePath.endsWith('.d.ts')) continue;
+
+            // クラスやインターフェースの場合、インポート文も検索
+            if (isClassOrInterface) {
+                const importDeclarations = sourceFile.getImportDeclarations();
+                
+                for (const importDecl of importDeclarations) {
+                    const namedImports = importDecl.getNamedImports();
+                    
+                    for (const namedImport of namedImports) {
+                        const importName = namedImport.getName();
+                        
+                        if (importName === symbolName) {
+                            const pos = namedImport.getStartLineNumber();
+                            
+                            references.push({
+                                filePath: path.relative(process.cwd(), currentFilePath),
+                                line: pos,
+                                column: 1, // 正確な列は不要なので1を使用
+                                context: `インポート: ${importDecl.getText()}`
+                            });
+                        }
+                    }
+                }
+            }
 
             // シンボル名に一致する識別子を検索
             const identifiers = sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)
@@ -130,6 +202,21 @@ export class SymbolFinder {
         }
 
         return references;
+    }
+
+    /**
+     * 定義ノードがクラスまたはインターフェースの定義かどうかを判定する
+     * @param node 定義ノード
+     * @returns クラスまたはインターフェースの定義かどうか
+     */
+    private isClassOrInterfaceDefinition(node: Node): boolean {
+        const parent = node.getParent();
+        if (!parent) return false;
+        
+        return (
+            parent.isKind(SyntaxKind.ClassDeclaration) || 
+            parent.isKind(SyntaxKind.InterfaceDeclaration)
+        );
     }
 
     /**

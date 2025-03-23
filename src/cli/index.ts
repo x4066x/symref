@@ -36,13 +36,15 @@ export function runCli() {
         });
 
     program
-        .command('dead <file>')
-        .description('ファイル内の未使用シンボルを検出します')
+        .command('dead <files...>')
+        .description('ファイル内の未使用シンボルを検出します（複数ファイルをスペース区切りまたはカンマ区切りで指定可能）')
         .option('-d, --dir <directory>', 'ソースディレクトリ', '.')
         .option('-i, --include <pattern>', 'インクルードパターン', '**/*.{ts,tsx}')
         .option('-e, --exclude <pattern>', '除外パターン', '**/node_modules/**,**/*.d.ts')
-        .action((file, options) => {
-            DeadCommand.execute(file, {
+        .action((files, options) => {
+            // 複数ファイルを結合
+            const fileInput = files.join(' ');
+            DeadCommand.execute(fileInput, {
                 dir: options.dir,
                 include: options.include,
                 exclude: options.exclude,

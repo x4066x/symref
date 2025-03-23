@@ -1,6 +1,6 @@
 import { Node, SyntaxKind } from 'ts-morph';
 import * as path from 'node:path';
-import { AnalyzerOptions, SymbolAnalysisOptions, ReferenceResult, SymbolInfo, CallGraphResult } from '../types/index.js';
+import { AnalyzerOptions, SymbolAnalysisOptions, ReferenceResult, SymbolInfo, CallGraphResult, SymbolLocation, SymbolType } from '../types/index.js';
 import { ProjectManager } from './ProjectManager.js';
 import { SymbolFinder } from './SymbolFinder.js';
 import { NodeUtils } from '../utils/NodeUtils.js';
@@ -319,5 +319,203 @@ export class SymbolReferenceAnalyzer {
      */
     public getProject() {
         return this.projectManager.getProject();
+    }
+
+    /**
+     * クラスメンバーの種類を判定する（内部メソッド）
+     * @param className クラス名
+     * @param memberName メンバー名
+     * @returns シンボルの種類
+     */
+    private determineClassMemberType(className: string, memberName: string): SymbolType {
+        const project = this.projectManager.getProject();
+        
+        for (const sourceFile of project.getSourceFiles()) {
+            // クラス宣言を検索
+            const classDecl = sourceFile.getClasses()
+                .find(c => c.getName() === className);
+            
+            if (classDecl) {
+                // メソッドをチェック
+                const method = classDecl.getMethods()
+                    .find(m => m.getName() === memberName);
+                if (method) return 'method';
+                
+                // プロパティをチェック
+                const property = classDecl.getProperties()
+                    .find(p => p.getName() === memberName);
+                if (property) return 'property';
+                
+                // getterをチェック
+                const getter = classDecl.getGetAccessors()
+                    .find(g => g.getName() === memberName);
+                if (getter) return 'property';
+                
+                // setterをチェック
+                const setter = classDecl.getSetAccessors()
+                    .find(s => s.getName() === memberName);
+                if (setter) return 'property';
+            }
+        }
+        
+        // デフォルトではmethod扱い
+        return 'method';
+    }
+
+    /**
+     * クラスメンバーノードを検索する（内部メソッド）
+     * @param classNameOrNode クラス名またはクラスのノード
+     * @param memberName メンバー名
+     * @returns メンバーノード
+     */
+    private findClassMemberNode(classNameOrNode: string | Node, memberName: string): Node | undefined {
+        const project = this.projectManager.getProject();
+        
+        // クラス名が文字列の場合
+        if (typeof classNameOrNode === 'string') {
+            const className = classNameOrNode;
+            
+            for (const sourceFile of project.getSourceFiles()) {
+                // クラス宣言を検索
+                const classDecl = sourceFile.getClasses()
+                    .find(c => c.getName() === className);
+                
+                if (classDecl) {
+                    // メソッドをチェック
+                    const method = classDecl.getMethods()
+                        .find(m => m.getName() === memberName);
+                    if (method) {
+                        return method.getNameNode();
+                    }
+                    
+                    // プロパティをチェック
+                    const property = classDecl.getProperties()
+                        .find(p => p.getName() === memberName);
+                    if (property) {
+                        return property.getNameNode();
+                    }
+                    
+                    // getterをチェック
+                    const getter = classDecl.getGetAccessors()
+                        .find(g => g.getName() === memberName);
+                    if (getter) {
+                        return getter.getNameNode();
+                    }
+                    
+                    // setterをチェック
+                    const setter = classDecl.getSetAccessors()
+                        .find(s => s.getName() === memberName);
+                    if (setter) {
+                        return setter.getNameNode();
+                    }
+                }
+            }
+        } 
+        // コンテナノードが渡された場合
+        else {
+            const containerNode = classNameOrNode;
+            const parent = containerNode.getParent();
+            if (!parent) {
+                return undefined;
+            }
+            
+            // クラス宣言の場合
+            if (parent.getKind() === SyntaxKind.ClassDeclaration || 
+                containerNode.getKind() === SyntaxKind.ClassDeclaration) {
+                const classDecl = parent.getKind() === SyntaxKind.ClassDeclaration 
+                    ? parent 
+                    : containerNode;
+                
+                // メンバーノードを検索
+                const members = classDecl.getDescendantsOfKind(SyntaxKind.Identifier)
+                    .filter(node => node.getText() === memberName);
+                
+                for (const member of members) {
+                    const parent = member.getParent();
+                    if (parent && (
+                        parent.getKind() === SyntaxKind.MethodDeclaration ||
+                        parent.getKind() === SyntaxKind.PropertyDeclaration ||
+                        parent.getKind() === SyntaxKind.GetAccessor ||
+                        parent.getKind() === SyntaxKind.SetAccessor
+                    )) {
+                        return member;
+                    }
+                }
+            }
+        }
+        
+        return undefined;
+    }
+
+    /**
+     * クラスのプロパティまたはメソッドの参照を分析する
+     * @param containerName コンテナ名（クラス/インターフェース名）
+     * @param memberName メンバー名（メソッド/プロパティ名）
+     * @param options 分析オプション
+     * @returns 参照分析結果
+     */
+    public analyzePropertyOrMethod(
+        containerName: string, 
+        memberName: string, 
+        options: SymbolAnalysisOptions = {}
+    ): ReferenceResult {
+        // コンテナの定義ノードを検索
+        const containerNode = this.symbolFinder.findDefinitionNode(containerName);
+        if (!containerNode) {
+            throw new Error(`コンテナ '${containerName}' が見つかりません`);
+        }
+        
+        // メンバーノードを検索
+        const memberNode = this.findClassMemberNode(containerName, memberName);
+        if (!memberNode) {
+            throw new Error(`メンバー '${memberName}' がコンテナ '${containerName}' 内で見つかりません`);
+        }
+        
+        // メンバーの種類を判定
+        const memberType = this.determineClassMemberType(containerName, memberName);
+        
+        // 参照を収集
+        let references: SymbolLocation[] = [];
+        
+        if (memberType === 'method') {
+            const methodRefs = this.findMethodReferences(containerName, memberName);
+            // extractReferenceInfoはprivateなので、自前で処理
+            references = methodRefs.map(node => {
+                const pos = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
+                const filePath = path.relative(process.cwd(), node.getSourceFile().getFilePath());
+                const context = this.nodeUtils.getNodeContext(node);
+                return {
+                    filePath,
+                    line: pos.line,
+                    column: pos.column,
+                    context
+                };
+            });
+        } else if (memberType === 'property') {
+            const propRefs = this.findPropertyReferences(containerName, memberName);
+            // extractReferenceInfoはprivateなので、自前で処理
+            references = propRefs.map(node => {
+                const pos = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
+                const filePath = path.relative(process.cwd(), node.getSourceFile().getFilePath());
+                const context = this.nodeUtils.getNodeContext(node);
+                return {
+                    filePath,
+                    line: pos.line,
+                    column: pos.column,
+                    context
+                };
+            });
+        }
+        
+        // 定義情報
+        const definition = this.symbolFinder.extractDefinitionInfo(memberNode);
+        
+        return {
+            symbol: `${containerName}.${memberName}`,
+            type: memberType,
+            definition,
+            references,
+            isReferenced: references.length > 0
+        };
     }
 } 

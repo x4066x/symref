@@ -10,11 +10,39 @@ import { CommonOptions } from '../types.js';
  */
 export class CallersCommand {
     /**
+     * シンボル文字列をパースする
+     * @param input 入力文字列
+     * @returns パースされたシンボルの配列
+     */
+    private static parseSymbols(input: string): string[] {
+        // カンマとスペースの両方で分割し、空の要素を除外
+        // まずカンマで分割し、その後スペースで分割する
+        const symbols = [];
+        
+        // カンマで分割
+        const commaSeparated = input.split(',');
+        
+        for (const part of commaSeparated) {
+            if (part.trim()) {
+                // スペースで分割
+                const spaceSeparated = part.trim().split(/\s+/);
+                for (const symbol of spaceSeparated) {
+                    if (symbol.trim()) {
+                        symbols.push(symbol.trim());
+                    }
+                }
+            }
+        }
+        
+        return symbols;
+    }
+
+    /**
      * コマンドを実行する
-     * @param symbol 分析対象のシンボル
+     * @param symbolInput 分析対象のシンボル（カンマまたはスペース区切りで複数指定可能）
      * @param options コマンドオプション
      */
-    public static execute(symbol: string, options: any): void {
+    public static execute(symbolInput: string, options: any): void {
         try {
             // 分析オプションを設定
             const analyzerOptions: AnalyzerOptions = {
@@ -24,24 +52,48 @@ export class CallersCommand {
                 excludePatterns: options.exclude ? options.exclude.split(',') : undefined
             };
 
+            // シンボルをパース
+            const symbols = this.parseSymbols(symbolInput);
+            if (symbols.length === 0) {
+                console.error('エラー: 分析対象のシンボルを指定してください。');
+                process.exit(1);
+            }
+
             // アナライザーを初期化
             const analyzer = new SymbolReferenceAnalyzer(analyzerOptions);
 
-            console.log(`\n=== '${symbol}' の呼び出し元を分析中... ===\n`);
+            let hasError = false;
+            let errorSymbols = [];
 
-            // 呼び出しグラフを構築
+            // 呼び出しグラフを構築（一度だけ）
             const nodeCount = analyzer.buildCallGraph();
             console.log(`${nodeCount} 個のシンボルを分析しました。\n`);
 
-            // 呼び出し元を分析
-            const result = analyzer.findCallers(symbol);
+            // 全てのシンボルを分析
+            for (const symbol of symbols) {
+                try {
+                    console.log(`\n=== '${symbol}' の呼び出し元を分析中... ===\n`);
 
-            // 結果を表示
-            CallersCommand.displayResult(result, symbol);
+                    // 呼び出し元を分析
+                    const result = analyzer.findCallers(symbol);
 
-            // Mermaidファイルを生成（オプション）
-            if (options.mermaid) {
-                CallersCommand.generateMermaidFile(result, options.mermaid);
+                    // 結果を表示
+                    CallersCommand.displayResult(result, symbol);
+
+                    // Mermaidファイルを生成（オプション）
+                    if (options.mermaid) {
+                        CallersCommand.generateMermaidFile(result, `${symbol}_${options.mermaid}`);
+                    }
+                } catch (error: any) {
+                    hasError = true;
+                    errorSymbols.push({ symbol, error: error.message });
+                    console.error(`エラー: ${error.message}`);
+                }
+            }
+
+            // エラーが発生した場合は終了コードを1に設定
+            if (hasError) {
+                process.exit(1);
             }
         } catch (error: any) {
             console.error(`エラー: ${error.message}`);

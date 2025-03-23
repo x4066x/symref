@@ -124,61 +124,114 @@ npm run refs MyClass
 
 #### `refs` - シンボル参照の解析
 
+指定したシンボル（クラス、関数、変数など）がコードベース内でどこで参照されているかを分析します。
+
 ```bash
 symref refs [symbol] [options]
 ```
 
-オプション:
+**使用例:**
+```bash
+# 単一シンボルの参照を検索
+symref refs MyClass
+
+# カンマまたはスペース区切りで複数シンボルを指定
+symref refs "MyClass MyFunction"
+symref refs "MyClass,MyFunction"
+
+# 内部参照も含めて検索
+symref refs MyClass --all
+```
+
+**オプション:**
 - `-d, --dir <path>`: 解析対象ディレクトリ
 - `-p, --project <path>`: TypeScript設定ファイル
-- `--include <pattern>`: 対象ファイルパターン
-- `--exclude <pattern>`: 除外ファイルパターン
+- `--include <pattern>`: 対象ファイルパターン（カンマ区切りで複数指定可能）
+- `--exclude <pattern>`: 除外ファイルパターン（カンマ区切りで複数指定可能）
 - `-a, --all`: 内部参照も含める
 
 #### `dead` - 未使用コードの検出
+
+ファイル内で定義されているが、他のファイルから参照されていないシンボルを検出します。
 
 ```bash
 symref dead [file] [options]
 ```
 
-オプション:
+**使用例:**
+```bash
+# 単一ファイルの未参照シンボルを検出
+symref dead src/file.ts
+
+# カンマまたはスペース区切りで複数ファイルを指定
+symref dead "src/file1.ts src/file2.ts"
+symref dead "src/file1.ts,src/file2.ts"
+
+# スペースを含むファイル名はクォートで囲む
+symref dead "src/file with space.ts"
+```
+
+**オプション:**
 - `-d, --dir <path>`: 解析対象ディレクトリ
 - `-p, --project <path>`: TypeScript設定ファイル
-- `--include <pattern>`: 対象ファイルパターン
-- `--exclude <pattern>`: 除外ファイルパターン
+- `--include <pattern>`: 対象ファイルパターン（カンマ区切りで複数指定可能）
+- `--exclude <pattern>`: 除外ファイルパターン（カンマ区切りで複数指定可能）
 
 #### `trace` - 呼び出しグラフの分析
 
+特定のシンボルから別のシンボルへの呼び出し経路を分析します。
+
 ```bash
-symref trace "<from> --to=<to>" [options]
+symref trace "from --to=to" [options]
 ```
 
-例：
+**使用例:**
 ```bash
+# main関数からUserService.updateUserEmailへの呼び出し経路を分析
 symref trace "main --to=UserService.updateUserEmail"
+
+# 呼び出し経路をMermaidグラフとして出力
+symref trace "main --to=UserService.updateUserEmail" --mermaid call_graph
 ```
 
-オプション:
+**オプション:**
 - `-d, --dir <path>`: 解析対象ディレクトリ
 - `-p, --project <path>`: TypeScript設定ファイル
-- `--include <pattern>`: 対象ファイルパターン
-- `--exclude <pattern>`: 除外ファイルパターン
+- `--include <pattern>`: 対象ファイルパターン（カンマ区切りで複数指定可能）
+- `--exclude <pattern>`: 除外ファイルパターン（カンマ区切りで複数指定可能）
 - `--mermaid <file>`: Mermaid形式のグラフファイルを出力
 
 #### `callers` - 呼び出し元の分析
+
+特定のシンボルがコードベース内でどこから呼び出されているかを分析します。
 
 ```bash
 symref callers [symbol] [options]
 ```
 
-オプション:
+**使用例:**
+```bash
+# 単一シンボルの呼び出し元を分析
+symref callers MyFunction
+
+# カンマまたはスペース区切りで複数シンボルを指定
+symref callers "MyFunction MyClass.method"
+symref callers "MyFunction,MyClass.method"
+
+# 呼び出し元をMermaidグラフとして出力
+symref callers MyFunction --mermaid callers_graph
+```
+
+**オプション:**
 - `-d, --dir <path>`: 解析対象ディレクトリ
 - `-p, --project <path>`: TypeScript設定ファイル
-- `--include <pattern>`: 対象ファイルパターン
-- `--exclude <pattern>`: 除外ファイルパターン
+- `--include <pattern>`: 対象ファイルパターン（カンマ区切りで複数指定可能）
+- `--exclude <pattern>`: 除外ファイルパターン（カンマ区切りで複数指定可能）
 - `--mermaid <file>`: Mermaid形式のグラフファイルを出力
 
 ### 共通オプション
+
+すべてのコマンドで使用できる共通オプション：
 
 - `--help`: ヘルプメッセージの表示
 - `--version`: バージョン情報の表示

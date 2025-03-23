@@ -17,7 +17,15 @@ export class TraceCommand {
      */
     public static execute(args: { from: string; to: string }, options: any): void {
         try {
-            const { from: fromSymbol, to: toSymbol } = args;
+            // 引数の検証
+            if (!args.from || !args.to) {
+                console.error('エラー: 開始シンボルと終了シンボルの両方を指定してください。');
+                process.exit(1);
+            }
+
+            // シンボル名の前後の空白を除去
+            const fromSymbol = args.from.trim();
+            const toSymbol = args.to.trim();
 
             // 分析オプションを設定
             const analyzerOptions: AnalyzerOptionsIndex = {
@@ -41,6 +49,12 @@ export class TraceCommand {
 
             // 結果を表示
             TraceCommand.displayResult(result, fromSymbol, toSymbol);
+
+            // 経路が見つからない場合は、終了コードを1に設定
+            if (result.paths.length === 0) {
+                console.error(`エラー: '${fromSymbol}' から '${toSymbol}' への呼び出し経路が見つかりませんでした。`);
+                process.exit(1);
+            }
 
             // Mermaidファイルを生成（オプション）
             if (options.mermaid) {

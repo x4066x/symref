@@ -105,27 +105,21 @@ export class RefsCommand {
                 
                 if (result.references.length === 0) {
                     unreferencedSymbols.push(parsedSymbol.symbol);
-                    hasError = true;
-                    errorSymbols.push({ symbol: parsedSymbol.symbol, error: `シンボル '${parsedSymbol.symbol}' が見つかりません` });
-                } else {
-                    allReferences.push(...result.references);
                 }
+                allReferences.push(...result.references);
             } catch (error: any) {
                 hasError = true;
                 errorSymbols.push({ 
                     symbol: parsedSymbol.symbol, 
-                    error: error.message.includes('was not found') 
-                        ? `シンボル '${parsedSymbol.symbol}' が見つかりません` 
-                        : error.message || `シンボル '${parsedSymbol.symbol}' が見つかりません` 
+                    error: error.message 
                 });
             }
         }
 
-        // エラーが発生したシンボルを表示（最初に表示）
+        // エラーが発生したシンボルを表示
         if (errorSymbols.length > 0) {
-            errorSymbols.forEach(({ error }) => {
-                // console.error ではなく process.stderr.write を使用
-                process.stderr.write(error + '\n');
+            errorSymbols.forEach(({ symbol, error }) => {
+                process.stderr.write(`エラー: ${error}\n`);
             });
         }
 

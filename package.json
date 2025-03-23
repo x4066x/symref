@@ -1,6 +1,6 @@
 {
   "name": "symref",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Static code checker for AI code agents (Windsurf, Cline, etc.)",
   "type": "module",
   "main": "dist/index.js",
@@ -52,9 +52,11 @@
     "ts-morph": "^19.0.0"
   },
   "devDependencies": {
+    "@types/chai": "^5.2.0",
     "@types/fs-extra": "^11.0.4",
     "@types/glob": "^8.1.0",
     "@types/jest": "^29.5.14",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^22.13.5",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.6",

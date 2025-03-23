@@ -241,4 +241,14 @@ export class SymbolFinder {
             return null;
         }
     }
+
+    /**
+     * シンボルが存在するかどうかを確認する
+     * @param symbolName シンボル名
+     * @returns シンボルが存在する場合はtrue、存在しない場合はfalse
+     */
+    public hasSymbol(symbolName: string): boolean {
+        const definitionNode = this.findDefinitionNode(symbolName);
+        return definitionNode !== undefined;
+    }
 } 

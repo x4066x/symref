@@ -38,6 +38,17 @@ export class TraceCommand {
             // アナライザーを初期化
             const analyzer = new SymbolReferenceAnalyzer(analyzerOptions);
 
+            // シンボルの存在確認
+            if (!analyzer.hasSymbol(fromSymbol)) {
+                process.stderr.write(`エラー: シンボル '${fromSymbol}' がコードベース内に見つかりません。\n`);
+                process.exit(1);
+            }
+
+            if (!analyzer.hasSymbol(toSymbol)) {
+                process.stderr.write(`エラー: シンボル '${toSymbol}' がコードベース内に見つかりません。\n`);
+                process.exit(1);
+            }
+
             console.log(`\n=== '${fromSymbol}' から '${toSymbol}' への呼び出し経路を分析中... ===\n`);
 
             // 呼び出しグラフを構築

@@ -72,6 +72,16 @@ export class CallersCommand {
             // 全てのシンボルを分析
             for (const symbol of symbols) {
                 try {
+                    // シンボルの存在確認
+                    if (!analyzer.hasSymbol(symbol)) {
+                        hasError = true;
+                        errorSymbols.push({ 
+                            symbol, 
+                            error: `シンボル '${symbol}' がコードベース内に見つかりません。` 
+                        });
+                        continue;
+                    }
+
                     console.log(`\n=== '${symbol}' の呼び出し元を分析中... ===\n`);
 
                     // 呼び出し元を分析
@@ -87,13 +97,14 @@ export class CallersCommand {
                 } catch (error: any) {
                     hasError = true;
                     errorSymbols.push({ symbol, error: error.message });
-                    console.error(`エラー: ${error.message}`);
                 }
             }
 
-            // エラーが発生した場合は終了コードを1に設定
-            if (hasError) {
-                process.exit(1);
+            // エラーが発生したシンボルを表示
+            if (errorSymbols.length > 0) {
+                errorSymbols.forEach(({ symbol, error }) => {
+                    process.stderr.write(`エラー: ${error}\n`);
+                });
             }
         } catch (error: any) {
             console.error(`エラー: ${error.message}`);

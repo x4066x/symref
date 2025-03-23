@@ -27,7 +27,7 @@ export class DeadCommand {
             const filePaths = this.parseFilePaths(fileInput);
             
             if (filePaths.length === 0) {
-                OutputFormatter.displayError('ファイルが指定されていません');
+                process.stderr.write(`エラー: ファイルが指定されていません\n`);
                 process.exit(1);
                 return;
             }
@@ -45,8 +45,8 @@ export class DeadCommand {
                 const absolutePath = path.resolve(options.dir, file);
                 
                 if (!fs.existsSync(absolutePath)) {
-                    OutputFormatter.displayError(`ファイルが見つかりません: ${file}`, 
-                        '\n以下を確認してください:\n' +
+                    process.stderr.write(`エラー: ファイルが見つかりません: ${file}\n`);
+                    process.stderr.write('\n以下を確認してください:\n' +
                         '1. ファイルパスが正しいこと\n' +
                         '2. 指定したディレクトリにファイルが存在すること\n' +
                         '3. ファイルの読み取り権限があること\n'
@@ -59,7 +59,10 @@ export class DeadCommand {
                     const unreferenced = analyzer.checkFile(file);
                     OutputFormatter.displayUnreferencedSymbols(file, unreferenced);
                 } catch (error) {
-                    OutputFormatter.displayError(`ファイル "${file}" の分析に失敗しました`, error instanceof Error ? error.message : undefined);
+                    process.stderr.write(`エラー: ファイル "${file}" の分析に失敗しました\n`);
+                    if (error instanceof Error) {
+                        process.stderr.write(`${error.message}\n`);
+                    }
                     hasError = true;
                 }
             }
@@ -69,7 +72,10 @@ export class DeadCommand {
                 process.exit(1);
             }
         } catch (error) {
-            OutputFormatter.displayError('ファイル分析に失敗しました', error instanceof Error ? error.message : undefined);
+            process.stderr.write('エラー: ファイル分析に失敗しました\n');
+            if (error instanceof Error) {
+                process.stderr.write(`${error.message}\n`);
+            }
             process.exit(1);
         }
     }

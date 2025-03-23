@@ -35,15 +35,16 @@ export class SymbolReferenceAnalyzer {
      * @returns 参照分析結果
      */
     public analyzeSymbol(symbolName: string, options: SymbolAnalysisOptions = {}): ReferenceResult {
-        const definitionNode = this.symbolFinder.findDefinitionNode(symbolName);
-        
-        if (!definitionNode) {
-            throw new Error(`Symbol '${symbolName}' was not found in the codebase. Please check:
-1. The symbol name is correct and matches exactly (case-sensitive)
-2. The symbol is defined in one of the analyzed files
-3. The file containing the symbol is included in the search path`);
+        // シンボルの存在確認
+        if (!this.symbolFinder.hasSymbol(symbolName)) {
+            throw new Error(`シンボル '${symbolName}' がコードベース内に見つかりません。以下を確認してください:
+1. シンボル名が正確に一致している（大文字小文字を区別）
+2. シンボルが分析対象のファイルで定義されている
+3. シンボルを含むファイルが検索パスに含まれている`);
         }
-
+        
+        // hasSymbolがtrueの場合、definitionNodeは必ず存在する
+        const definitionNode = this.symbolFinder.findDefinitionNode(symbolName)!;
         const symbolType = this.nodeUtils.determineSymbolType(definitionNode);
         const references = this.symbolFinder.collectReferences(symbolName, definitionNode, options.includeInternalReferences);
         const definition = this.symbolFinder.extractDefinitionInfo(definitionNode);
@@ -311,6 +312,15 @@ export class SymbolReferenceAnalyzer {
      */
     public findCallers(symbol: string): CallGraphResult {
         return this.callGraphAnalyzer.findAllCallers(symbol);
+    }
+
+    /**
+     * シンボルが存在するかどうかを確認する
+     * @param symbolName シンボル名
+     * @returns シンボルが存在する場合はtrue、存在しない場合はfalse
+     */
+    public hasSymbol(symbolName: string): boolean {
+        return this.symbolFinder.hasSymbol(symbolName);
     }
 
     /**

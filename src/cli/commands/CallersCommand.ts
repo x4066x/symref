@@ -75,25 +75,74 @@ export class CallersCommand {
             
             // アナライザーを初期化
             const analyzer = new SymbolReferenceAnalyzer(analyzerOptions);
-            
-            // 定義を検索
-            if (!analyzer.hasSymbol(symbolInput)) {
-                console.error(`シンボル '${symbolInput}' が見つかりませんでした。`);
-                return;
+
+            // シンボルを解析
+            const symbols = CallersCommand.parseSymbols(symbolInput);
+
+            let hasError = false;
+            let errorSymbols = [];
+
+            // 呼び出しグラフを構築（一度だけ）
+            const nodeCount = analyzer.buildCallGraph();
+            console.log(`${nodeCount} 個のシンボルを分析しました。\n`);
+
+            // 全てのシンボルを分析
+            for (const symbol of symbols) {
+                try {
+                    const symbolName = symbol.symbol;
+                    
+                    // シンボルの存在確認
+                    if (symbol.containerName && symbol.memberName) {
+                        // コンテナが存在するか確認
+                        if (!analyzer.hasSymbol(symbol.containerName)) {
+                            hasError = true;
+                            errorSymbols.push({ 
+                                symbol: symbolName, 
+                                error: `コンテナ '${symbol.containerName}' がコードベース内に見つかりません。` 
+                            });
+                            continue;
+                        }
+                    } else {
+                        // 単一シンボルの存在確認
+                        if (!analyzer.hasSymbol(symbolName)) {
+                            hasError = true;
+                            errorSymbols.push({ 
+                                symbol: symbolName, 
+                                error: `シンボル '${symbolName}' がコードベース内に見つかりません。` 
+                            });
+                            continue;
+                        }
+                    }
+                    
+                    console.log(`\n=== '${symbolName}' の呼び出し元を分析中... ===\n`);
+
+                    // 呼び出し元を分析
+                    const result = analyzer.findCallers(symbolName);
+
+                    // 結果を表示
+                    CallersCommand.displayResult(result, symbolName);
+
+                    // Mermaidファイルを生成（オプション）
+                    if (options.mermaid) {
+                        CallersCommand.generateMermaidFile(result, `${symbolName}_${options.mermaid}`);
+                    }
+                } catch (error: any) {
+                    hasError = true;
+                    errorSymbols.push({ symbol: symbol.symbol, error: error.message });
+                }
             }
-            
-            // 呼び出し元を探索
-            analyzer.buildCallGraph();
-            const result = analyzer.findCallers(symbolInput);
-            
-            // 結果を表示
-            CallersCommand.displayResult(result, symbolInput);
-            
-            // Mermaid出力が指定されていれば保存
-            if (options.mermaid) {
-                const mermaidDiagram = CallersCommand.generateMermaidFile(result, symbolInput);
-                fs.writeFileSync(options.mermaid, mermaidDiagram, 'utf8');
-                console.log(`呼び出し元のMermaidダイアグラムを ${options.mermaid} に保存しました。`);
+
+            // エラーが発生したシンボルを表示
+            if (errorSymbols.length > 0) {
+                console.log('\nエラーが発生したシンボル:');
+                errorSymbols.forEach(({ symbol, error }) => {
+                    console.error(`  - ${symbol}: ${error}`);
+                });
+            }
+
+            // エラーが発生した場合は終了コードを1に設定
+            if (hasError) {
+                process.exit(1);
             }
         } catch (error: any) {
             console.error(`エラーが発生しました: ${error.message}`);

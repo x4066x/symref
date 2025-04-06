@@ -60,7 +60,7 @@ export class CallersCommand {
 
     /**
      * コマンドを実行する
-     * @param symbolInput 分析対象のシンボル（カンマまたはスペース区切りで複数指定可能）
+     * @param symbolInput 検索するシンボル
      * @param options コマンドオプション
      */
     public static execute(symbolInput: string, options: any): void {
@@ -72,85 +72,34 @@ export class CallersCommand {
                 includePatterns: options.include ? options.include.split(',') : undefined,
                 excludePatterns: options.exclude ? options.exclude.split(',') : undefined
             };
-
-            // シンボルをパース
-            const symbols = this.parseSymbols(symbolInput);
-            if (symbols.length === 0) {
-                console.error('エラー: 分析対象のシンボルを指定してください。');
-                process.exit(1);
-            }
-
+            
             // アナライザーを初期化
             const analyzer = new SymbolReferenceAnalyzer(analyzerOptions);
-
-            let hasError = false;
-            let errorSymbols = [];
-
-            // 呼び出しグラフを構築（一度だけ）
-            const nodeCount = analyzer.buildCallGraph();
-            console.log(`${nodeCount} 個のシンボルを分析しました。\n`);
-
-            // 全てのシンボルを分析
-            for (const symbol of symbols) {
-                try {
-                    const symbolName = symbol.symbol;
-                    
-                    // シンボルの存在確認
-                    if (symbol.containerName && symbol.memberName) {
-                        // コンテナが存在するか確認
-                        if (!analyzer.hasSymbol(symbol.containerName)) {
-                            hasError = true;
-                            errorSymbols.push({ 
-                                symbol: symbolName, 
-                                error: `コンテナ '${symbol.containerName}' がコードベース内に見つかりません。` 
-                            });
-                            continue;
-                        }
-                    } else {
-                        // 単一シンボルの存在確認
-                        if (!analyzer.hasSymbol(symbolName)) {
-                            hasError = true;
-                            errorSymbols.push({ 
-                                symbol: symbolName, 
-                                error: `シンボル '${symbolName}' がコードベース内に見つかりません。` 
-                            });
-                            continue;
-                        }
-                    }
-                    
-                    console.log(`\n=== '${symbolName}' の呼び出し元を分析中... ===\n`);
-
-                    // 呼び出し元を分析
-                    const result = analyzer.findCallers(symbolName);
-
-                    // 結果を表示
-                    CallersCommand.displayResult(result, symbolName);
-
-                    // Mermaidファイルを生成（オプション）
-                    if (options.mermaid) {
-                        CallersCommand.generateMermaidFile(result, `${symbolName}_${options.mermaid}`);
-                    }
-                } catch (error: any) {
-                    hasError = true;
-                    errorSymbols.push({ symbol: symbol.symbol, error: error.message });
-                }
+            
+            // 定義を検索
+            if (!analyzer.hasSymbol(symbolInput)) {
+                console.error(`シンボル '${symbolInput}' が見つかりませんでした。`);
+                return;
             }
-
-            // エラーが発生したシンボルを表示
-            if (errorSymbols.length > 0) {
-                console.log('\nエラーが発生したシンボル:');
-                errorSymbols.forEach(({ symbol, error }) => {
-                    console.error(`  - ${symbol}: ${error}`);
-                });
-            }
-
-            // エラーが発生した場合は終了コードを1に設定
-            if (hasError) {
-                process.exit(1);
+            
+            // 呼び出し元を探索
+            analyzer.buildCallGraph();
+            const result = analyzer.findCallers(symbolInput);
+            
+            // 結果を表示
+            CallersCommand.displayResult(result, symbolInput);
+            
+            // Mermaid出力が指定されていれば保存
+            if (options.mermaid) {
+                const mermaidDiagram = CallersCommand.generateMermaidFile(result, symbolInput);
+                fs.writeFileSync(options.mermaid, mermaidDiagram, 'utf8');
+                console.log(`呼び出し元のMermaidダイアグラムを ${options.mermaid} に保存しました。`);
             }
         } catch (error: any) {
-            console.error(`エラー: ${error.message}`);
-            process.exit(1);
+            console.error(`エラーが発生しました: ${error.message}`);
+            if (error.stack) {
+                console.error(error.stack);
+            }
         }
     }
 
@@ -160,8 +109,10 @@ export class CallersCommand {
      * @param symbol 対象シンボル
      */
     private static displayResult(result: CallGraphResult, symbol: string): void {
+        console.log('===== 呼び出し元の分析結果 =====');
+        
         if (result.paths.length === 0) {
-            console.log(`'${symbol}' の呼び出し元は見つかりませんでした。`);
+            console.log(`シンボル '${symbol}' の呼び出し元が見つかりませんでした`);
             return;
         }
 
@@ -206,10 +157,10 @@ export class CallersCommand {
      * @param result 分析結果
      * @param outputPath 出力パス
      */
-    private static generateMermaidFile(result: CallGraphResult, outputPath: string): void {
+    private static generateMermaidFile(result: CallGraphResult, outputPath: string): string {
         if (!result.graphMermaidFormat) {
             console.warn('警告: Mermaidグラフデータを生成できませんでした。');
-            return;
+            return '';
         }
 
         try {
@@ -235,8 +186,11 @@ export class CallersCommand {
             fs.writeFileSync(resolvedPath, result.graphMermaidFormat);
             console.log(`Mermaidグラフファイルを生成しました: ${resolvedPath}`);
             console.log('可視化するには: GitHubで表示するか、https://mermaid.live で開いてください');
+
+            return result.graphMermaidFormat;
         } catch (error: any) {
             console.error(`Mermaidファイルの生成中にエラーが発生しました: ${error.message}`);
+            return '';
         }
     }
 
@@ -265,7 +219,8 @@ export class CallersCommand {
                         ? `${edgeLocation.filePath}:${edgeLocation.line}` 
                         : locationStr;
                     
-                    lines.push(`  ↓ calls (${callLocationStr})`);
+                    // デバッグ出力を削除
+                    lines.push(`  ↑ called by (${callLocationStr})`);
                     lines.push(`${node.symbol} (${locationStr})`);
                 }
             });
@@ -273,5 +228,17 @@ export class CallersCommand {
         });
 
         return lines.join('\n');
+    }
+
+    private createReferenceAnalyzer(options: any): SymbolReferenceAnalyzer {
+        // Implementation of createReferenceAnalyzer method
+        // This method should return an instance of SymbolReferenceAnalyzer
+        throw new Error("Method not implemented");
+    }
+
+    private generateMermaidDiagram(result: CallGraphResult): string {
+        // Implementation of generateMermaidDiagram method
+        // This method should return a string representing the Mermaid diagram
+        throw new Error("Method not implemented");
     }
 }

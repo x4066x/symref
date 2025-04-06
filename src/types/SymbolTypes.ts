@@ -31,4 +31,4 @@ export interface SymbolInfo {
 /**
  * シンボルの種類
  */
-export type SymbolType = 'function' | 'interface' | 'class' | 'variable' | 'method' | 'property' | 'enum'; 
+export type SymbolType = 'function' | 'interface' | 'class' | 'variable' | 'method' | 'property' | 'enum' | 'component' | 'function-component' | 'class-component' | 'potential-component' | 'react-hook'; 

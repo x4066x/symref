@@ -17,7 +17,7 @@ export class ProjectManager {
      * @param options 設定オプション
      */
     constructor(options: AnalyzerOptions) {
-        const { basePath, tsConfigPath, includePatterns = ["**/*.ts", "**/*.tsx"], excludePatterns = ["**/node_modules/**"] } = options;
+        const { basePath, tsConfigPath, includePatterns = ["**/*.ts", "**/*.tsx", "**/*.jsx"], excludePatterns = ["**/node_modules/**"] } = options;
 
         // ベースパスを正規化
         this.basePath = path.resolve(basePath);
@@ -69,6 +69,7 @@ export class ProjectManager {
             files.forEach(file => {
                 if (!project.getSourceFile(file)) {
                     project.addSourceFileAtPath(file);
+                } else {
                 }
             });
         }

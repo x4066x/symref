@@ -1,4 +1,4 @@
-import { Project, Node, SyntaxKind } from 'ts-morph';
+import { Project, Node, SyntaxKind, JsxOpeningElement, JsxSelfClosingElement, Identifier, PropertyAccessExpression } from 'ts-morph';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { CallGraphNode, CallEdge, CallPath, CallGraphResult, SymbolLocation } from '../types/index.js';
@@ -77,6 +77,9 @@ export class CallGraphAnalyzer {
 
             // クラス宣言を処理
             this.processClasses(sourceFile);
+
+            // 変数宣言されたコンポーネントを処理
+            this.processVariableDeclarations(sourceFile);
         }
 
         // 呼び出し関係を構築
@@ -134,6 +137,33 @@ export class CallGraphAnalyzer {
     }
 
     /**
+     * 変数宣言を処理し、Reactコンポーネントをグラフに追加
+     * @param sourceFile ソースファイル
+     */
+    private processVariableDeclarations(sourceFile: any): void {
+        const varDecls = sourceFile.getVariableDeclarations();
+        for (const varDecl of varDecls) {
+            const varName = varDecl.getName();
+            if (!varName) continue;
+
+            // シンボルタイプを判定
+            const definitionNode = varDecl.getNameNode();
+            if (!definitionNode) continue;
+            const symbolType = this.nodeUtils.determineSymbolType(definitionNode);
+
+            // 関数コンポーネントまたはクラスコンポーネントの場合のみグラフに追加
+            if (symbolType === 'function-component' || symbolType === 'class-component') {
+                const node = this.getOrCreateNode(varName, symbolType, definitionNode);
+                const initializer = varDecl.getInitializer();
+                if (initializer) {
+                    // コンポーネントの初期化式（関数本体など）内の呼び出しを処理
+                    this.processCallExpressions(initializer, node);
+                }
+            }
+        }
+    }
+
+    /**
      * 関数/メソッド本体内の呼び出し式を処理
      * @param node 関数/メソッドノード
      * @param callGraphNode 呼び出しグラフノード
@@ -146,33 +176,64 @@ export class CallGraphAnalyzer {
             const expression = callExpr.getExpression();
             
             // 直接呼び出し (例: myFunction())
-            if (expression.getKind() === SyntaxKind.Identifier) {
+            if (expression.isKind(SyntaxKind.Identifier)) {
                 const calleeName = expression.getText();
-                // 呼び出し位置情報を含めて記録
-                this.recordCallRelationship(callGraphNode, calleeName);
+                
+                // React Hookパターンをチェック (useXxx)
+                if (calleeName.startsWith('use') && /^use[A-Z]/.test(calleeName)) {
+                    this.recordHookCallRelationship(callGraphNode, calleeName, callExpr);
+                    continue;
+                }
+                
+                // 通常の関数呼び出し
+                this.recordCallRelationship(callGraphNode, calleeName, callExpr);
             }
-            // プロパティアクセス呼び出し (例: obj.method())
-            else if (expression.getKind() === SyntaxKind.PropertyAccessExpression) {
-                const propAccess = expression as any;
+            // プロパティアクセス呼び出し (例: obj.method(), React.useState())
+            else if (expression.isKind(SyntaxKind.PropertyAccessExpression)) {
+                const propAccess = expression as PropertyAccessExpression;
                 const methodName = propAccess.getName();
                 const objExpr = propAccess.getExpression();
                 
-                // オブジェクト型を取得して、クラスメソッド呼び出しを検出
-                const objType = objExpr.getType();
-                const typeName = objType.getSymbol()?.getName();
-                
-                if (typeName && methodName) {
-                    const fullMethodName = `${typeName}.${methodName}`;
-                    // 呼び出し位置情報を含めて記録
-                    this.recordCallRelationship(callGraphNode, fullMethodName);
-                } else {
-                    // 型名が取得できない場合は、式のテキストを使用
-                    const objText = objExpr.getText();
-                    if (objText && methodName) {
-                        const fullMethodName = `${objText}.${methodName}`;
-                        this.recordCallRelationship(callGraphNode, fullMethodName);
-                    }
+                // React.useXxx() パターンをチェック
+                const objText = objExpr.getText();
+                if (methodName && objText === 'React' && 
+                    methodName.startsWith('use') && /^use[A-Z]/.test(methodName)) {
+                    
+                    this.recordHookCallRelationship(callGraphNode, `React.${methodName}`, callExpr);
+                    continue;
                 }
+                
+                // 型に基づく完全な解決が難しいため、テキストベースでの解決を主とする
+                if (methodName) {
+                     const fullMethodName = `${objText}.${methodName}`;
+                     this.recordCallRelationship(callGraphNode, fullMethodName, callExpr);
+                }
+            }
+        }
+
+        // JSX 要素 (コンポーネントの使用) を処理
+        const jsxElements = [
+            ...node.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+            ...node.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)
+        ];
+
+        for (const jsxElement of jsxElements) {
+            const tagNameNode = jsxElement.getTagNameNode();
+            let calleeName: string | undefined;
+
+            if (tagNameNode.isKind(SyntaxKind.Identifier)) {
+                calleeName = tagNameNode.getText();
+            } else if (tagNameNode.isKind(SyntaxKind.PropertyAccessExpression)) {
+                 // 例: <Namespace.Component />
+                 calleeName = tagNameNode.getText(); // フルネームを取得
+            }
+
+            if (calleeName) {
+                 // コンポーネント名はPascalCaseであることを確認（HTMLタグとの区別）
+                 if (calleeName[0] === calleeName[0].toUpperCase()) {
+                     // 呼び出し元 (callGraphNode.symbol) から calleeName への関係を記録
+                     this.recordCallRelationship(callGraphNode, calleeName, jsxElement);
+                 }
             }
         }
     }
@@ -181,28 +242,79 @@ export class CallGraphAnalyzer {
      * 呼び出し関係を記録
      * @param caller 呼び出し元ノード
      * @param calleeName 呼び出し先シンボル名
+     * @param callNode 呼び出し箇所のノード（オプション）
      */
-    private recordCallRelationship(caller: CallGraphNode, calleeName: string): void {
+    private recordCallRelationship(caller: CallGraphNode, calleeName: string, callNode?: Node): void {
         // 呼び出し先ノードを取得または作成
-        const calleeNode = this.getOrCreateNode(calleeName, 'unknown', null);
+        let calleeType = 'unknown';
         
-        // 呼び出し位置情報を取得（将来の拡張のために準備）
-        // let callLocation: SymbolLocation = caller.location;
-        // if (callExpr) {
-        //     callLocation = {
-        //         filePath: path.relative(process.cwd(), callExpr.getSourceFile().getFilePath()),
-        //         line: callExpr.getStartLineNumber(),
-        //         column: callExpr.getStartLinePos(),
-        //         context: this.nodeUtils.getNodeContext(callExpr)
-        //     };
-        // }
+        // シンボルタイプを特定
+        const sourceFiles = this.project.getSourceFiles();
+        for (const file of sourceFiles) {
+            // 関数コンポーネントを探す
+            const funcDecls = file.getFunctions();
+            for (const func of funcDecls) {
+                if (func.getName() === calleeName) {
+                    calleeType = this.nodeUtils.determineSymbolType(func.getNameNode() || func);
+                    break;
+                }
+            }
+            
+            // 変数宣言のコンポーネントを探す
+            if (calleeType === 'unknown') {
+                const varDecls = file.getVariableDeclarations();
+                for (const varDecl of varDecls) {
+                    if (varDecl.getName() === calleeName) {
+                        calleeType = this.nodeUtils.determineSymbolType(varDecl.getNameNode() || varDecl);
+                        break;
+                    }
+                }
+            }
+            
+            // クラスコンポーネントを探す
+            if (calleeType === 'unknown') {
+                const classDecls = file.getClasses();
+                for (const classDecl of classDecls) {
+                    if (classDecl.getName() === calleeName) {
+                        calleeType = this.nodeUtils.determineSymbolType(classDecl.getNameNode() || classDecl);
+                        break;
+                    }
+                }
+            }
+            
+            if (calleeType !== 'unknown') break;
+        }
         
-        // エッジ情報は現在使用していないが、将来の拡張のために準備
-        // const edge: CallEdge = {
-        //     caller,
-        //     callee: calleeNode,
-        //     location: callLocation
-        // };
+        // コンポーネント名はPascalCaseであることが多いため、型の推測を試みる
+        if (calleeType === 'unknown' && 
+            calleeName[0] === calleeName[0].toUpperCase() && 
+            /[A-Z][a-z]+/.test(calleeName)) {
+            calleeType = 'potential-component';
+        }
+        
+        const calleeNode = this.getOrCreateNode(calleeName, calleeType, null);
+        
+        // 呼び出し位置情報を取得
+        let callLocation: SymbolLocation = caller.location;
+        if (callNode) {
+            try {
+                callLocation = {
+                    filePath: path.relative(process.cwd(), callNode.getSourceFile().getFilePath()),
+                    line: callNode.getStartLineNumber(),
+                    column: callNode.getStartLinePos(),
+                    context: this.nodeUtils.getNodeContext(callNode)
+                };
+            } catch (error) {
+                console.warn(`警告: 呼び出し位置情報を取得できませんでした。`);
+            }
+        }
+        
+        // エッジ情報を作成
+        const edge: CallEdge = {
+            caller,
+            callee: calleeNode,
+            location: callLocation
+        };
         
         // 呼び出し関係を記録
         calleeNode.callers.push(caller);
@@ -210,12 +322,70 @@ export class CallGraphAnalyzer {
     }
 
     /**
+     * React Hook呼び出し関係を記録
+     * @param caller 呼び出し元ノード（コンポーネント）
+     * @param hookName フック名
+     * @param callNode 呼び出し箇所のノード
+     */
+    private recordHookCallRelationship(caller: CallGraphNode, hookName: string, callNode: Node): void {
+        // フックノードを作成または取得
+        const hookNode = this.getOrCreateNode(hookName, 'react-hook', null);
+        
+        // 呼び出し位置情報を取得
+        let callLocation: SymbolLocation = caller.location;
+        if (callNode) {
+            try {
+                callLocation = {
+                    filePath: path.relative(process.cwd(), callNode.getSourceFile().getFilePath()),
+                    line: callNode.getStartLineNumber(),
+                    column: callNode.getStartLinePos(),
+                    context: `React Hook: ${this.nodeUtils.getNodeContext(callNode)}`
+                };
+            } catch (error) {
+                console.warn(`警告: フック呼び出し位置情報を取得できませんでした。`);
+            }
+        }
+        
+        // エッジ情報を作成
+        const edge: CallEdge = {
+            caller,
+            callee: hookNode,
+            location: callLocation
+        };
+        
+        // 呼び出し関係を記録
+        hookNode.callers.push(caller);
+        caller.callees.push(hookNode);
+    }
+
+    /**
      * 呼び出し関係を構築
      */
     private buildCallRelationships(): void {
-        // すべてのノードを処理して、呼び出し関係を構築
-        // この段階では既に基本的な関係は記録されているため、
-        // 必要に応じて追加の処理を行う
+        // すべてのノードを処理
+        for (const [symbolName, node] of this.callGraph.entries()) {
+            // 関数コンポーネントとクラスコンポーネントの場合、特別な処理
+            if (node.type === 'function-component' || node.type === 'class-component') {
+                // このコンポーネントがJSX内で使用するコンポーネントを確認
+                // 基本的な関係は既にprocessCallExpressionsで構築されているので、
+                // ここでは必要に応じて追加の関係を構築
+                
+                // 例：パターンベースのコンポーネント検出の強化
+                for (const callee of node.callees) {
+                    if (callee.type === 'unknown' && 
+                        callee.symbol[0] === callee.symbol[0].toUpperCase() && 
+                        /[A-Z][a-z]+/.test(callee.symbol)) {
+                        callee.type = 'potential-component';
+                    }
+                }
+            }
+            // unknown型のノードがPascalCaseの場合、潜在的なコンポーネントとして検出
+            else if (node.type === 'unknown' && 
+                    symbolName[0] === symbolName[0].toUpperCase() && 
+                    /[A-Z][a-z]+/.test(symbolName)) {
+                node.type = 'potential-component';
+            }
+        }
     }
 
     /**
@@ -427,44 +597,44 @@ export class CallGraphAnalyzer {
         edges: CallEdge[],
         results: CallPath[]
     ): void {
-        // 現在のノードを経路の先頭に追加
-        path.unshift(current);
-        visited.add(current.symbol);
-
-        // エッジを作成
-        if (path.length > 1) {
-            const edge: CallEdge = {
-                caller: current,
-                callee: path[1],
-                location: current.location
-            };
-            edges.push(edge);
+        // ここでcircular reference対策
+        if (visited.has(current.symbol)) {
+            // 循環参照を検出した場合は処理をスキップ
+            return;
         }
 
-        // 呼び出し元がない場合（エントリーポイント）
-        if (current.callers.length === 0) {
-            // 経路をコピーして結果に追加
+        // 新しいパスと辺インスタンスを作成
+        const newPath = [...path, current];
+        const newVisited = new Set(visited);
+        newVisited.add(current.symbol);
+
+        // 呼び出し元がない場合（＝根ノード）、現在のパスを結果に追加
+        if (!current.callers || current.callers.length === 0) {
             results.push({
-                nodes: [...path],
+                nodes: [...newPath],
                 edges: [...edges],
-                startSymbol: current.symbol,
-                endSymbol: path[path.length - 1].symbol
+                startSymbol: newPath[0].symbol,
+                endSymbol: newPath[newPath.length - 1].symbol
             });
-        } else {
-            // 呼び出し元を探索
-            for (const caller of current.callers) {
-                if (!visited.has(caller.symbol)) {
-                    // 再帰的に探索
-                    this.dfsReverseSearch(caller, visited, path, edges, results);
-                }
-            }
+            return;
         }
 
-        // バックトラック
-        path.shift();
-        visited.delete(current.symbol);
-        if (edges.length > 0) {
-            edges.pop();
+        // 各呼び出し元を再帰的に処理
+        for (const caller of current.callers) {
+            // 既に訪問済みの呼び出し元はスキップ
+            if (visited.has(caller.symbol)) {
+                continue;
+            }
+
+            // エッジを追加して再帰呼び出し
+            const newEdges = [...edges];
+            newEdges.unshift({
+                caller: caller,
+                callee: current,
+                location: caller.location
+            });
+
+            this.dfsReverseSearch(caller, newVisited, newPath, newEdges, results);
         }
     }
 
@@ -478,13 +648,30 @@ export class CallGraphAnalyzer {
         let mermaid = '```mermaid\n';
         mermaid += 'classDiagram\n';
         
-        // クラスとメソッドの関係を整理
+        // コンポーネントとメソッドの関係を整理
+        const components = new Set<string>();
+        const hooks = new Set<string>();
         const classMethods = new Map<string, Set<string>>();
         const methodCalls = new Set<string>();
+        const componentCalls = new Set<string>();
+        const hookCalls = new Set<string>();
         
         // ノードとエッジを収集
         for (const path of paths) {
             for (const node of path.nodes) {
+                // コンポーネントの場合
+                if (node.type === 'function-component' || 
+                    node.type === 'class-component' || 
+                    node.type === 'potential-component') {
+                    components.add(node.symbol);
+                }
+                
+                // Reactフックの場合
+                if (node.type === 'react-hook') {
+                    hooks.add(node.symbol);
+                }
+                
+                // クラスメソッドの場合
                 const [className, methodName] = node.symbol.split('.');
                 if (methodName) {
                     // クラスとメソッドの関係を記録
@@ -496,8 +683,29 @@ export class CallGraphAnalyzer {
             }
             
             for (const edge of path.edges) {
-                const [callerClass, callerMethod] = edge.caller.symbol.split('.');
-                const [calleeClass, calleeMethod] = edge.callee.symbol.split('.');
+                const caller = edge.caller;
+                const callee = edge.callee;
+                
+                // コンポーネントからフックへの呼び出し関係を記録
+                if ((caller.type === 'function-component' || 
+                     caller.type === 'class-component' || 
+                     caller.type === 'potential-component') && 
+                    callee.type === 'react-hook') {
+                    hookCalls.add(`${caller.symbol} --> ${callee.symbol} : uses hook`);
+                }
+                // コンポーネント間の呼び出し関係を記録
+                else if ((caller.type === 'function-component' || 
+                     caller.type === 'class-component' || 
+                     caller.type === 'potential-component') && 
+                    (callee.type === 'function-component' || 
+                     callee.type === 'class-component' || 
+                     callee.type === 'potential-component')) {
+                    componentCalls.add(`${caller.symbol} --> ${callee.symbol} : uses`);
+                }
+                
+                // メソッド間の呼び出し関係
+                const [callerClass, callerMethod] = caller.symbol.split('.');
+                const [calleeClass, calleeMethod] = callee.symbol.split('.');
                 
                 if (callerMethod && calleeMethod) {
                     methodCalls.add(`${callerClass}.${callerMethod} --> ${calleeClass}.${calleeMethod}`);
@@ -505,13 +713,62 @@ export class CallGraphAnalyzer {
             }
         }
         
+        // コンポーネントを出力
+        for (const component of components) {
+            const node = this.callGraph.get(component);
+            if (node) {
+                if (node.type === 'function-component') {
+                    mermaid += `  class ${component} {\n    <<Function Component>>\n  }\n`;
+                } else if (node.type === 'class-component') {
+                    mermaid += `  class ${component} {\n    <<Class Component>>\n  }\n`;
+                } else {
+                    mermaid += `  class ${component} {\n    <<Component>>\n  }\n`;
+                }
+            }
+        }
+        
+        // Reactフックを出力
+        for (const hook of hooks) {
+            mermaid += `  class ${hook} {\n    <<React Hook>>\n  }\n`;
+        }
+        
         // クラスとメソッドを出力
         for (const [className, methods] of classMethods) {
+            // 既にコンポーネントとして出力済みの場合はスキップ
+            if (components.has(className)) continue;
+            
             mermaid += `  class ${className} {\n`;
             for (const method of methods) {
                 mermaid += `    +${method}()\n`;
             }
             mermaid += '  }\n';
+        }
+        
+        // ノードのスタイル設定
+        for (const component of components) {
+            const node = this.callGraph.get(component);
+            if (node) {
+                if (node.type === 'function-component') {
+                    mermaid += `  style ${component} fill:#d0e0ff,stroke:#3366cc\n`;
+                } else if (node.type === 'class-component') {
+                    mermaid += `  style ${component} fill:#d6efd0,stroke:#339933\n`;
+                }
+            }
+        }
+        
+        // Reactフックのスタイル設定
+        for (const hook of hooks) {
+            mermaid += `  style ${hook} fill:#ffe6cc,stroke:#ff9933\n`;
+        }
+        
+        // コンポーネント間の呼び出し関係を出力
+        for (const call of componentCalls) {
+            mermaid += `  ${call}\n`;
+        }
+        
+        // フック呼び出し関係を出力
+        for (const call of hookCalls) {
+            mermaid += `  ${call}\n`;
         }
         
         // メソッド間の呼び出し関係を出力

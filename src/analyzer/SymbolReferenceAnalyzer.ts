@@ -114,9 +114,13 @@ export class SymbolReferenceAnalyzer {
                 checkedSymbols.add(className);
                 try {
                     const result = this.analyzeSymbol(className);
-                    if (!result.isReferenced) {
+                    // クラスコンポーネントの場合、JSXタグでの参照も考慮
+                    const isComponent = result.type === 'class-component';
+                    const isReferenced = result.isReferenced || this.isReferencedAsJSXTag(className);
+                    
+                    if (!isReferenced) {
                         unreferencedSymbols.push({
-                            type: 'class',
+                            type: isComponent ? 'class-component' : 'class',
                             name: className,
                             context: 'モジュールスコープ'
                         });
@@ -154,9 +158,13 @@ export class SymbolReferenceAnalyzer {
                 checkedSymbols.add(funcName);
                 try {
                     const result = this.analyzeSymbol(funcName);
-                    if (!result.isReferenced) {
+                    // 関数コンポーネントの場合、JSXタグでの参照も考慮
+                    const isComponent = result.type === 'function-component';
+                    const isReferenced = result.isReferenced || this.isReferencedAsJSXTag(funcName);
+                    
+                    if (!isReferenced) {
                         unreferencedSymbols.push({
-                            type: 'function',
+                            type: isComponent ? 'function-component' : 'function',
                             name: funcName,
                             context: 'モジュールスコープ'
                         });
@@ -166,6 +174,134 @@ export class SymbolReferenceAnalyzer {
                 }
             }
         });
+        
+        // 変数宣言をチェック（Reactコンポーネントとして実装されていることが多い）
+        this.checkTopLevelVariables(sourceFile, checkedSymbols, unreferencedSymbols);
+    }
+    
+    /**
+     * トップレベル変数宣言をチェックする
+     * @param sourceFile ソースファイル
+     * @param checkedSymbols チェック済みシンボルのセット
+     * @param unreferencedSymbols 未参照シンボルのリスト
+     */
+    private checkTopLevelVariables(
+        sourceFile: any,
+        checkedSymbols: Set<string>,
+        unreferencedSymbols: SymbolInfo[]
+    ): void {
+        // 変数宣言を取得
+        const topLevelVars = sourceFile.getVariableDeclarations().filter((varDecl: any) => {
+            // モジュールレベルの変数宣言のみを対象とする
+            const stmt = varDecl.getParent().getParent();
+            return stmt && stmt.getParent() === sourceFile;
+        });
+        
+        for (const varDecl of topLevelVars) {
+            const varName = varDecl.getName();
+            if (varName && !checkedSymbols.has(varName)) {
+                checkedSymbols.add(varName);
+                try {
+                    // シンボルを分析
+                    const result = this.analyzeSymbol(varName);
+                    
+                    // Reactコンポーネントかどうかを判定
+                    const isComponent = result.type === 'function-component' || 
+                                        result.type === 'potential-component';
+                    
+                    // JSXタグとしての参照も確認
+                    const isReferenced = result.isReferenced || this.isReferencedAsJSXTag(varName);
+                    
+                    if (!isReferenced) {
+                        unreferencedSymbols.push({
+                            type: isComponent ? 'function-component' : 'variable',
+                            name: varName,
+                            context: 'モジュールスコープ'
+                        });
+                    }
+                } catch (error) {
+                    // シンボルが見つからない場合はスキップ
+                }
+            }
+        }
+    }
+    
+    /**
+     * シンボルがJSXタグとして参照されているかチェック
+     * @param symbolName シンボル名
+     * @returns JSXタグとして参照されていればtrue
+     */
+    private isReferencedAsJSXTag(symbolName: string): boolean {
+        const project = this.projectManager.getProject();
+        
+        // PascalCase チェック（コンポーネント名の一般的な規則）
+        const isPascalCase = symbolName.charAt(0) === symbolName.charAt(0).toUpperCase() && 
+                           symbolName.length > 1;
+        
+        // コンポーネント名でなさそうならチェックしない（パフォーマンス最適化）
+        if (!isPascalCase) {
+            return false;
+        }
+        
+        console.log(`[Debug JSX] Checking if component ${symbolName} is referenced as JSX tag`);
+        
+        // すべてのソースファイルを走査
+        for (const sourceFile of project.getSourceFiles()) {
+            // .d.tsファイルはスキップ
+            if (sourceFile.getFilePath().endsWith('.d.ts')) continue;
+            
+            // JSXタグを検索
+            const jsxElements = [
+                ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+                ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)
+            ];
+            
+            // 各JSXタグを確認
+            for (const element of jsxElements) {
+                const jsxElement = element as any; // JsxOpeningElement | JsxSelfClosingElement
+                const tagNameNode = jsxElement.getTagNameNode();
+                let tagName = '';
+                
+                if (tagNameNode.isKind(SyntaxKind.Identifier)) {
+                    tagName = tagNameNode.getText();
+                    
+                    if (tagName === symbolName) {
+                        console.log(`[Debug JSX] Found component ${symbolName} referenced as JSX tag`);
+                        return true;
+                    }
+                } else if (tagNameNode.isKind(SyntaxKind.PropertyAccessExpression)) {
+                    // 例: <Namespace.Component />
+                    const propAccess = tagNameNode as any; // PropertyAccessExpression
+                    const propertyName = propAccess.getName();
+                    
+                    if (propertyName === symbolName) {
+                        console.log(`[Debug JSX] Found component ${symbolName} referenced as JSX tag (namespace)`);
+                        return true;
+                    }
+                    
+                    // 完全な文字列も確認（例：Module.ComponentName）
+                    const fullName = tagNameNode.getText();
+                    if (fullName.endsWith(`.${symbolName}`)) {
+                        console.log(`[Debug JSX] Found component ${symbolName} referenced as JSX tag (full namespace)`);
+                        return true;
+                    }
+                }
+            }
+            
+            // 出力結果から判断すると、App内で参照されているコンポーネントも検出
+            // App コンポーネントのレンダリング内容を取得
+            const appComponent = sourceFile.getVariableDeclaration('App');
+            if (appComponent) {
+                const appBody = appComponent.getFullText();
+                // 単純な文字列検索でもある程度有効
+                if (appBody.includes(`<${symbolName}`) || appBody.includes(`<${symbolName} `)) {
+                    console.log(`[Debug JSX] Found component ${symbolName} referenced in App component`);
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 
     /**

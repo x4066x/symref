@@ -105,6 +105,24 @@ interface Reference {
 }
 ```
 
+#### SymbolType
+
+```typescript
+type SymbolType = 
+  | 'function'
+  | 'class'
+  | 'interface'
+  | 'variable'
+  | 'method'
+  | 'property'
+  | 'enum'
+  | 'function-component'  // React関数コンポーネント
+  | 'class-component'     // Reactクラスコンポーネント
+  | 'potential-component' // 潜在的なReactコンポーネント
+  | 'react-hook'          // React Hook
+  | 'component';          // 一般的なコンポーネント
+```
+
 #### CallGraph
 
 ```typescript
@@ -116,6 +134,72 @@ interface CallGraph {
     entryPoints: Symbol[];
     exitPoints: Symbol[];
   };
+}
+```
+
+### 2.3 React対応機能
+
+#### JSXタグ参照の検出
+
+```typescript
+// JSXタグによる参照を検出するためのAPI
+class SymbolFinder {
+  // ...既存のメソッド...
+  
+  /**
+   * JSXタグを含むすべての参照を収集
+   * @param symbolName 検索対象のシンボル名
+   * @param includeJsxTags JSXタグによる参照も含めるかどうか
+   * @returns 参照情報の配列
+   */
+  collectReferences(symbolName: string, includeJsxTags = true): Reference[];
+}
+```
+
+#### コンポーネント定義の検出
+
+```typescript
+// Reactコンポーネントの定義を検出するAPI
+class NodeUtils {
+  // ...既存のメソッド...
+  
+  /**
+   * ノードのシンボルタイプを判定（Reactコンポーネント対応）
+   * @param node 対象ノード
+   * @returns シンボルタイプ
+   */
+  determineSymbolType(node: Node): SymbolType;
+  
+  /**
+   * ノードがReactコンポーネントかどうかを判定
+   * @param node 対象ノード
+   * @returns コンポーネントの場合true
+   */
+  isReactComponent(node: Node): boolean;
+}
+```
+
+#### 呼び出しグラフでのJSXタグ対応
+
+```typescript
+// JSXタグを呼び出し関係として扱うためのAPI
+class CallGraphAnalyzer {
+  // ...既存のメソッド...
+  
+  /**
+   * JSXタグを含む呼び出し関係を構築
+   * @param callGraphNode 呼び出し元ノード
+   * @param node 対象ノード
+   */
+  processJsxElements(callGraphNode: CallGraphNode, node: Node): void;
+  
+  /**
+   * React Hooksの呼び出し関係を記録
+   * @param caller 呼び出し元ノード
+   * @param hookName フック名
+   * @param callNode 呼び出し箇所のノード
+   */
+  recordHookCallRelationship(caller: CallGraphNode, hookName: string, callNode: Node): void;
 }
 ```
 

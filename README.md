@@ -183,6 +183,18 @@ symref refs "MyClass,MyFunction"
 
 # 内部参照も含めて検索
 symref refs MyClass --all
+
+# クラスメソッドの参照を検索
+symref refs MyClass.myMethod
+
+# 特定のディレクトリ内で検索
+symref refs MyClass -d src/components
+
+# 特定のファイルパターンのみ検索
+symref refs MyClass --include "*.tsx"
+
+# 特定のファイルパターンを除外して検索
+symref refs MyClass --exclude "*.test.ts"
 ```
 
 **オプション:**
@@ -211,6 +223,12 @@ symref dead "src/file1.ts,src/file2.ts"
 
 # スペースを含むファイル名はクォートで囲む
 symref dead "src/file with space.ts"
+
+# 特定のディレクトリ内の全ファイルを分析
+symref dead -d src/components
+
+# 特定のファイルパターンのみ分析
+symref dead -d src --include "*.tsx"
 ```
 
 **オプション:**
@@ -231,6 +249,12 @@ symref trace "from --to=to" [options]
 ```bash
 # main関数からUserService.updateUserEmailへの呼び出し経路を分析
 symref trace "main --to=UserService.updateUserEmail"
+
+# クラスメソッド間の呼び出し経路を分析
+symref trace "MyClass.method1 --to=OtherClass.method2"
+
+# 特定のディレクトリ内で分析
+symref trace "main --to=UserService.updateUserEmail" -d src/services
 
 # 呼び出し経路をMermaidグラフとして出力
 symref trace "main --to=UserService.updateUserEmail" --mermaid call_graph
@@ -259,6 +283,12 @@ symref callers MyFunction
 # カンマまたはスペース区切りで複数シンボルを指定
 symref callers "MyFunction MyClass.method"
 symref callers "MyFunction,MyClass.method"
+
+# クラスメソッドの呼び出し元を分析
+symref callers MyClass.myMethod
+
+# 特定のディレクトリ内で分析
+symref callers MyFunction -d src/services
 
 # 呼び出し元をMermaidグラフとして出力
 symref callers MyFunction --mermaid callers_graph
@@ -382,15 +412,81 @@ src/
 
 ### パフォーマンス最適化
 
-1. **キャッシュ戦略**
-   - プロジェクトのキャッシュ
-   - 解析結果のキャッシュ
-   - ファイルシステムのキャッシュ
+バージョン2.0では、大規模なコードベースでも高速に動作するよう、以下の最適化が施されています：
 
-2. **メモリ管理**
-   - 大規模プロジェクトの処理
+1. **キャッシュ機構**
+   - 解析結果のキャッシュによる高速化
+   - 差分解析による効率的な再解析
+   - メモリ使用量の最適化
+
+2. **並列処理**
+   - マルチスレッド解析のサポート
+   - ファイル単位の並列処理
+   - 解析タスクの効率的な分散
+
+3. **メモリ管理**
+   - 不要なデータの即時解放
    - メモリリークの防止
-   - リソースの解放
+   - 大規模プロジェクトでの安定動作
+
+### エラー処理とデバッグ
+
+1. **詳細なエラーメッセージ**
+   - 解析エラーの具体的な原因表示
+   - スタックトレースの提供
+   - エラー箇所の正確な特定
+
+2. **デバッグモード**
+   - 詳細なログ出力
+   - 解析プロセスの可視化
+   - パフォーマンスメトリクスの表示
+
+3. **エラーリカバリー**
+   - 部分的な解析結果の保持
+   - エラー発生時の継続解析
+   - エラー箇所のスキップオプション
+
+### 設定オプション
+
+`.symrefrc`ファイルまたは`package.json`の`symref`セクションで以下の設定が可能です：
+
+```json
+{
+  "symref": {
+    "include": ["src/**/*.ts", "src/**/*.tsx"],
+    "exclude": ["**/*.test.ts", "**/*.spec.ts"],
+    "cache": {
+      "enabled": true,
+      "directory": ".symref-cache"
+    },
+    "performance": {
+      "threads": 4,
+      "memoryLimit": "2GB"
+    },
+    "debug": {
+      "enabled": false,
+      "logLevel": "info"
+    }
+  }
+}
+```
+
+### トラブルシューティング
+
+1. **解析が遅い場合**
+   - キャッシュを有効化
+   - スレッド数を調整
+   - メモリ制限を設定
+
+2. **メモリ不足の場合**
+   - メモリ制限を設定
+   - キャッシュを無効化
+   - 解析対象を絞り込む
+
+3. **エラーが発生する場合**
+   - デバッグモードを有効化
+   - ログレベルを調整
+   - エラーリカバリーを有効化
 
 ### 出力ディレクトリの管理
 
